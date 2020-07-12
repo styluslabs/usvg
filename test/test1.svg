@@ -1,0 +1,174 @@
+<?xml version="1.0"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+         "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1200" height="1200">
+
+  <style type='text/css'><![CDATA[
+    .blueclass { fill: blue; stroke: red; stroke-width: 3; }
+
+    .g4 > #rectid2 { stroke: yellow; }
+    .g2 #rectid1 { stroke-width: 8; }
+    .g1 > .g2 > .g3 { stroke: black; }
+    .g1 .g2 .g3 { stroke: magenta; }
+    #gid1 .g3 > #gid4 { stroke-width: 16; }
+    .g1 > .g2 > .g4 > .rect2 { stroke-width: 50; } /* should not apply */
+    .g999 .rect2 { stroke-width: 50; } /* should not apply */
+    #gid999 .rect2 { stroke-width: 50; } /* should not apply */
+    #gid3.g3 .g4 #rectid1.cls1 { fill: cyan; }
+    #gid2.g3 .g4 #rectid1.cls1 { fill: red; } /* should not apply */
+    .g1 .rect1, .g4 > .rect2 { stroke-opacity: 0.7; }
+    #gid3 > .g4 > .rect2.cls2 { fill: magenta; }
+
+  ]]></style>
+
+  <defs>
+    <linearGradient id="Gradient2" x1="0" x2="0" y1="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="red"/>
+      <stop offset="100%" stop-color="blue"/>
+    </linearGradient>
+    <g id="baseEllipses">
+      <circle cx="125" cy="175" r="100" fill="none" stroke="#888888" stroke-width="2" />
+      <circle cx="225" cy="75" r="100" fill="none" stroke="#888888" stroke-width="2" />
+      <text x="35" y="70">Arc start</text>
+      <text x="225" y="145">Arc end</text>
+    </g>
+    <path id="Path1" transform="scale(0.25, 0.25)" d="M -125,150 L 0,0 L 125,150" fill="none" stroke="black" stroke-width="70"/>
+    <path id="Triangle" d="M 16,0 L -8,9 v-18 z" fill="black" stroke="none" />
+    <font horiz-adv-x="313" xml:id="la">
+      <metadata>Converted from Larabie Anglepoise by Batik ttf2svg
+      See http://www.larabiefonts.com/ </metadata>
+      <font-face font-family="larabie-anglepoise" units-per-em="1000"
+          panose-1="0 0 4 0 0 0 0 0 0 0" ascent="703" descent="-300" alphabetic="0"/>
+      <missing-glyph horiz-adv-x="500" d="M63 0V700H438V0H63ZM125 63H375V638H125V63Z"/>
+      <glyph unicode="S" glyph-name="S" horiz-adv-x="385" d="M371 1H29V144H264Q264 151 264
+          166Q265 180 265 188Q265 212 249 212H132Q83 212 55 247Q29 279 29
+          329V566H335V422H136V375Q136 360 144 356Q148 355 168 355H279Q327 355 352 309Q371 273
+          371 221V1Z"/>
+      <glyph unicode="V" glyph-name="V" horiz-adv-x="351" d="M365 563L183 -33L0 563H101L183
+          296L270 563H365Z"/>
+      <glyph unicode="G" glyph-name="G" horiz-adv-x="367" d="M355
+          1H18V564H355V420H125V144H248V211H156V355H355V1Z"/>
+      <hkern g1="V" g2="G" k="-40"/>
+    </font>
+  </defs>
+
+ <rect style="fill: #000000; fill-opacity: 0.3; stroke:none" x="-100" y="-100" width="200" height="200"/>
+ <rect transform="translate(200,200)" style="fill: magenta; stroke:#0000FF; stroke-width:10px" x="100" y="100" width="200" height="200"/>
+ <rect transform="rotate(45, 300, 300)" style="fill: cyan; stroke:#FF0000; stroke-width:10px" x="200" y="200" width="200" height="200"/>
+
+  <rect x="50" y="50" height="100" width="100" style="stroke:#000; fill: #0086B2" fill-opacity="0.2" stroke-opacity="0.2"></rect>
+  <rect x="50" y="50" height="100" width="100" style="stroke:#000; fill: #0086B2" transform="translate(30) rotate(45 50 50)"></rect>
+  <text x="60" y="105" transform="translate(30) rotate(45 50 50)"> Hello Moz! </text>
+
+  <rect x="10" y="420" rx="0" ry="0" width="100" height="100" fill="url(#Gradient2)"/>
+
+  <ellipse class="blueclass" fill-opacity="0.2" cx="100" cy="300" rx="100" ry="60"/>
+
+  <g transform="translate(400, 0) scale(0.5)" font-size="20">
+    <g>
+      <text x="50" y="210">large-arc-flag=0</text>
+      <text x="50" y="250">sweep-flag=0</text>
+      <use xlink:href="#baseEllipses"/>
+      <path d="M 125,75 a100,100 0 0,0 100,100" fill="none" stroke="red" stroke-width="6" />
+    </g>
+    <g transform="translate(400,0)">
+      <text x="50" y="210">large-arc-flag=0</text>
+      <text x="50" y="250">sweep-flag=1</text>
+      <use xlink:href="#baseEllipses"/>
+      <path d="M 125,75 a100,100 0 0,1 100,100"
+            fill="none" stroke="red" stroke-width="6" />
+    </g>
+    <g transform="translate(0,250)">
+      <text x="50" y="210">large-arc-flag=1</text>
+      <text x="50" y="250">sweep-flag=0</text>
+      <use xlink:href="#baseEllipses"/>
+      <path d="M 125,75 a100,100 0 1,0 100,100" fill="none" stroke="red" stroke-width="6" />
+    </g>
+    <g transform="translate(400,250)">
+      <text x="50" y="210">large-arc-flag=1</text>
+      <text x="50" y="250">sweep-flag=1</text>
+      <use xlink:href="#baseEllipses"/>
+      <path d="M 125,75 a100,100 0 1,1 100,100" fill="none" stroke="red" stroke-width="6" />
+    </g>
+  </g>
+
+  <text x="40" y="50" font-family="larabie-anglepoise" font-size="70" fill="#933">SVG</text>
+
+  <image transform="rotate(45 300 250)" x="300" y="250" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAU1QTFRFNjtAQEVK////bG9zSk9T/v7+/f39/f3+9vf3O0BETlJWNzxB/Pz8d3t+TFFVzM3O1NXX7u/vUldbRElNs7W3v8HCmZyeRkpPW19j8vLy7u7vvsDC9PT1cHR3Oj9Eo6WnxsjJR0tQOD1Bj5KVgYSHTVFWtri50dLUtLa4YmZqOT5D8vPzRUpOkZOWc3Z64uPjr7Gzuru95+jpX2NnaGxwPkNHp6mrioyPlZeadXh8Q0hNPEBFyszNh4qNc3d6eHx/OD1Cw8XGXGBkfoGEra+xxcbIgoaJu72/m52ggoWIZ2tu8/P0wcLE+vr7kZSXgIOGP0NIvr/BvL6/QUZKP0RJkpWYpKaoqKqtVVldmJqdl5qcZWhstbe5bHB0bnJ1UVVZwsTF5ubnT1RYcHN3oaSm3N3e3NzdQkdLnJ+h9fX1TlNX+Pj47/DwwsPFVFhcEpC44wAAAShJREFUeNq8k0VvxDAQhZOXDS52mRnKzLRlZmZm+v/HxmnUOlFaSz3su4xm/BkGzLn4P+XimOJZyw0FKufelfbfAe89dMmBBdUZ8G1eCJMba69Al+AABOOm/7j0DDGXtQP9bXjYN2tWGQfyA1Yg1kSu95x9GKHiIOBXLcAwUD1JJSBVfUbwGGi2AIvoneK4bCblSS8b0RwwRAPbCHx52kH60K1b9zQUjQKiULbMDbulEjGha/RQQFDE0/ezW8kR3C3kOJXmFcSyrcQR7FDAi55nuGABZkT5hqpk3xughDN7FOHHHd0LLU9qtV7r7uhsuRwt6pEJJFVLN4V5CT+SErpXt81DbHautkpBeHeaqNDRqUA0Uo5GkgXGyI3xDZ/q/wJMsb7/pwADAGqZHDyWkHd1AAAAAElFTkSuQmCC"/>
+
+  <image x="300" y="350" xlink:href="data:image/jpg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD//gA8Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2NjIpLCBxdWFsaXR5ID0gMTAwCv/bAEMAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAf/bAEMBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAf/AABEIABAAEAMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP2k/bz/AGVvHH/BYb4yftf/AAe8BftV+P8A4beCf2N/AXgHwZ8OPhv4GuZ9N+HPj39pzxRb/EDxF41n+NP2iG0n8Q2GhQ6N4R8BWB0u5mi8KTza7qthM12us6TrOP8AsH/sk+M/+COnx8/Y2+FXjT9qb4hfELwZ+2f8OPiT4J+K/wAOvGt7PqHww8GftNeFYvhv4h8B3Hwft7a3uZNCi1n+3fFfgCW71a6Q+Jmi029vZxPdaNpGh/af7XXwu8P/AAH+Lt38aNc+H+leN/gt428W6T8Z9O1Xxhq3i3QPAn7OH7XnhYeGdATx94s8a/DXQtY8ffDn4MfHHwBpdtaeP9WutK8X/CzSPiH4GsdR8ceGIl+Jmo6jJD+yJ8JvDfx3+Mg+OGhfD7TPBHwb8KeL7740axqvhDWfGPiDwD+0h+13r8fiPw6njrwd4w+JmiaR458e/BP4GeAdRuIvAWo6Xo/gn4Ua58S/Hepa14N8LXM3w5tNVr4x4Ck81+seyvnP1pP6x9YxV1hPrarc31e3sfY/U/8AZb+3UfZNrldf9y/6WjxVjo8BSyn69bw1eRSh/ZKyjIeWXED4fWX+yebXWZvNFxG3nqj/AGW6ix0Yz9t/ZD/tSP8A/9k="/>
+
+  <path transform="translate(150, -50) scale(4,4)"
+        d="m 20,20 0,10 10,0 0,-10 z
+           m 15,0 0,10 10,0 0,-10 z
+           m 15,0 0,10 10,0 0,-10 z" />
+
+  <g transform="translate(20, 650) scale(10, 10)" style="fill:red;stroke:black;stroke-width:0.3;">
+    <path d="M0, 0 L5, 0 L5, 4 L1, 4 L1, 2 L3, 2 L3, 3 L2, 3 L2, 1 L4, 1 L4, 5 L0, 5 Z"/>
+  </g>
+
+  <use xlink:href="#Path1" x="650" y="300" stroke-linejoin="miter" stroke-linecap="square" />
+  <use xlink:href="#Path1" x="750" y="300" stroke-linejoin="bevel" stroke-linecap="butt" />
+  <use xlink:href="#Path1" x="850" y="300" stroke-linejoin="round" stroke-linecap="round" />
+
+  <g transform="translate(20, 550) scale(0.5 0.5)" fill-rule="evenodd" fill="red" stroke="black" stroke-width="3">
+
+  <path d="M 930.613,500 44.315,297.708 755.071,864.517 360.631,45.455 360.631,954.545 755.071,135.483 44.315,702.292 930.613,500" />
+
+    <path d="M 250,75 L 323,301 131,161 369,161 177,301 z" />
+    <use xlink:href="#Triangle" transform="translate(306.21 249) rotate(72)" />
+    <use xlink:href="#Triangle" transform="translate(175.16,193.2) rotate(216)" />
+    <use xlink:href="#Triangle" transform="translate(314.26,161) rotate(0)" />
+    <use xlink:href="#Triangle" transform="translate(221.16,268.8) rotate(144)" />
+    <use xlink:href="#Triangle" transform="translate(233.21,126.98) rotate(288)" />
+    <path d="M 600,81 A 107,107 0 0,1 600,295 A 107,107 0 0,1 600,81 z
+             M 600,139 A 49,49 0 0,1 600,237 A 49,49 0 0,1 600,139 z" />
+    <use xlink:href="#Triangle" transform="translate(600,188) rotate(0) translate(107,0) rotate(90)" />
+    <use xlink:href="#Triangle" transform="translate(600,188) rotate(120) translate(107,0) rotate(90)" />
+    <use xlink:href="#Triangle" transform="translate(600,188) rotate(240) translate(107,0) rotate(90)" />
+    <use xlink:href="#Triangle" transform="translate(600,188) rotate(60) translate(49,0) rotate(90)" />
+    <use xlink:href="#Triangle" transform="translate(600,188) rotate(180) translate(49,0) rotate(90)" />
+    <use xlink:href="#Triangle" transform="translate(600,188) rotate(300) translate(49,0) rotate(90)" />
+    <path d="M 950,81 A 107,107 0 0,1 950,295 A 107,107 0 0,1 950,81 z
+             M 950,139 A 49,49 0 0,0 950,237 A 49,49 0 0,0 950,139 z" />
+    <use xlink:href="#Triangle" transform="translate(950,188) rotate(0) translate(107,0) rotate(90)" />
+    <use xlink:href="#Triangle" transform="translate(950,188) rotate(120) translate(107,0) rotate(90)" />
+    <use xlink:href="#Triangle" transform="translate(950,188) rotate(240) translate(107,0) rotate(90)" />
+    <use xlink:href="#Triangle" transform="translate(950,188) rotate(60) translate(49,0) rotate(-90)" />
+    <use xlink:href="#Triangle" transform="translate(950,188) rotate(180) translate(49,0) rotate(-90)" />
+    <use xlink:href="#Triangle" transform="translate(950,188) rotate(300) translate(49,0) rotate(-90)" />
+  </g>
+
+  <!-- use x="800" y="800" height="48" xlink:href="svg/ic_menu_append_page.svg"/ -->
+
+  <!-- override parent positions -->
+  <g transform="translate(1000, 50)">
+    <text font-size="24" x="20 40 60 80 100"><tspan x="40 20" y="-20" fill="red">Hell</tspan>o World</text>
+  </g>
+
+  <!-- text anchor test -->
+  <g transform="translate(1000, 100)">
+    <text font-size="24" y="0" text-anchor="start"  ><tspan fill="red">He<tspan fill="green">ll</tspan></tspan>o World!</text>
+    <text font-size="24" y="30" text-anchor="middle"><tspan fill="red">He<tspan fill="green">ll</tspan></tspan>o World!</text>
+    <text font-size="24" y="60" text-anchor="end"   ><tspan fill="red">He<tspan fill="green">ll</tspan></tspan>o World!</text>
+  </g>
+
+  <!-- ignore extra positions -->
+  <g transform="translate(1000, 200)">
+    <text font-size="24" y="10 20 30 40 50 60 70 80"><tspan fill="red">He<tspan y="60 50 40 30 120" fill="green">l012</tspan></tspan>o World</text>
+  </g>
+
+  <g id="gid1" class="g1">
+    <g id="gid2" class="g2">
+      <g id="gid3" class="g3">
+        <g id="gid4" class="g4">
+           <rect id="rectid1" class="rect1 cls1" x="650" y="400" rx="0" ry="0" width="100" height="100" fill="red"/>
+           <rect id="rectid2" class="rect2 cls2" x="800" y="400" rx="0" ry="0" width="100" height="100" fill="blue"/>
+        </g>
+      </g>
+    </g>
+  </g>
+
+</svg>
