@@ -1,6 +1,6 @@
 # usvg #
 
-usvg? ?svg? micro-svg?
+usvg? μsvg? micro-svg?
 
 C++ SVG library: reading, writing, modifying, and rendering.  Does not support entire SVG specification but should handle most documents correctly.
 

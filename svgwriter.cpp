@@ -14,6 +14,13 @@ char* SvgWriter::serializeColor(char* buff, const Color& color)
 
   if(color.color == Color::NONE || color.color == Color::INVALID_COLOR)  // any alpha == 0?
     strcpy(buff, "none");
+  else if(color.alpha() < 255) {
+    // probably should use fstring, but it isn't actually used anywhere else in SvgWriter
+    strcpy(buff, "rgba(");
+    int n = writeNumbersList(buff+5,
+        {real(color.red()), real(color.green()), real(color.blue()), color.alphaF()}, ',');
+    strcpy(buff+n+5, ")");
+  }
   else {
     int r = color.red(), g = color.green(), b = color.blue();
     buff[0] = '#';
@@ -281,17 +288,23 @@ void SvgWriter::_serialize(SvgImage* node)
 
   // m_linkStr will be empty iff image successfully loaded from inline base64
   if(node->m_linkStr.empty()) {
+    Image cropped(0, 0);
+    bool crop = node->srcRect.isValid() && node->srcRect != Rect::wh(node->m_image.width, node->m_image.height);
+    if(crop)
+      cropped = node->m_image.cropped(node->srcRect);
+    const Image& img = crop ? cropped : node->m_image;
+
     Transform2D tf = node->totalTransform();
     Rect tf_bounds = tf.mapRect(node->viewport());
     int scaledw = int(saveImageScaled*tf_bounds.width() + 0.5);
     int scaledh = int(saveImageScaled*tf_bounds.height() + 0.5);
     // shrink image to save space if sufficient size change (and new size is not tiny)
     bool scaleimg = saveImageScaled > 0 && tf_bounds.width() > 10 && tf_bounds.height() > 10
-        && (scaledw < 0.75*node->m_image.width || scaledh < 0.75*node->m_image.height);
+        && (scaledw < 0.75*img.width || scaledh < 0.75*img.height);
     // compress image
-    auto buff = scaleimg ? node->m_image.scaled(scaledw, scaledh).encode() : node->m_image.encode();
+    auto buff = scaleimg ? img.scaled(scaledw, scaledh).encode() : img.encode();
 
-    std::string prefix = std::string("data:image/") + node->m_image.formatName() + ";base64,";
+    std::string prefix = std::string("data:image/") + img.formatName() + ";base64,";
     size_t base64len;
     base64_encode(NULL, buff.size(), NULL, &base64len);  // get encoded size
     base64len += 1;  // account for \0 terminator
@@ -468,7 +481,7 @@ void SvgWriter::_serialize(SvgFont* node)
   xml.writeAttribute("units-per-em", node->m_unitsPerEm);
   xml.writeEndElement();
 
-  for(SvgGlyph* glyph : node->m_glyphs) {
+  for(SvgGlyph* glyph : node->glyphs()) {
     xml.writeStartElement(glyph->m_unicode.empty()? "missing-glyph" : "glyph");
     if(!glyph->m_name.empty()) xml.writeAttribute("glyph-name", glyph->m_name);
     if(!glyph->m_unicode.empty()) xml.writeAttribute("unicode", glyph->m_unicode);

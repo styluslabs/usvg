@@ -448,7 +448,7 @@ void SvgPainter::_draw(const SvgDocument* doc)
 
 void SvgPainter::_draw(const SvgImage* node)
 {
-  p->drawImage(node->viewport(), node->m_image);
+  p->drawImage(node->viewport(), node->m_image, node->srcRect);
 }
 
 void SvgPainter::_draw(const SvgPath* node)

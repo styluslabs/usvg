@@ -962,7 +962,7 @@ bool SvgParser::startElement(StringRef nodeName, const XmlStreamAttributes& attr
     else if(nodeName == "missing-glyph") node = createGlyphNode();
     else if(nodeName == "font-face") parseFontFaceNode(static_cast<SvgFont*>(parent));
     else if(nodeName == "hkern") parseFontKerning(static_cast<SvgFont*>(parent));
-    // for font-face, we'll return false (since node == NULL) so it's consumed as unrecognized node
+    // for font-face, we return false (since node == NULL) so it's consumed (not saved) as unrecognized node
     if(node)
       static_cast<SvgFont*>(parent)->addGlyph(static_cast<SvgGlyph*>(node));
   }
@@ -1034,7 +1034,7 @@ void SvgParser::parse(XmlStreamReader* const xml)
         if(m_nodes.back()->asContainerNode())
           m_nodes.back()->asContainerNode()->addChild(new SvgXmlFragment(xml->readNodeAsFragment()));
         else
-          xml->readNodeAsFragment();        // read node to skip even if we can't add it to doc
+          delete xml->readNodeAsFragment();  // read node to skip even if we can't add it to doc
       }
       break;
     // EndDocument means atEnd() returns true, so this never runs - maybe move below loop?

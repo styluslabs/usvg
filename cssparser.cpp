@@ -2,6 +2,7 @@
 
 #include "cssparser.h"
 #include <algorithm>
+#include <cctype>
 #include <string.h>
 
 static std::string& lcase(std::string& s)

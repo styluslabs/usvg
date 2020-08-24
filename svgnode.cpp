@@ -897,8 +897,8 @@ bool SvgDocument::canRestyle()
 SvgImage::SvgImage(Image image, const Rect& bounds, const char* linkStr)
     : m_image(std::move(image)), m_bounds(bounds), m_linkStr(linkStr ? linkStr : "") {}
 
-SvgImage::SvgImage(const SvgImage& other)
-    : SvgNode(other), m_image(other.m_image.copy()), m_bounds(other.m_bounds), m_linkStr(other.m_linkStr) {}
+SvgImage::SvgImage(const SvgImage& other) : SvgNode(other), m_image(other.m_image.copy()),
+    m_bounds(other.m_bounds), m_linkStr(other.m_linkStr), srcRect(other.srcRect) {}
 
 Rect SvgImage::viewport() const
 {
@@ -1064,20 +1064,6 @@ std::string SvgTspan::displayText() const
 SvgGlyph::SvgGlyph(const char* name, const char* unicode, real horizAdvX)
     : m_name(name), m_unicode(unicode), m_horizAdvX(horizAdvX) {}
 
-SvgFont::~SvgFont()
-{
-  for(SvgGlyph* glyph : m_glyphs)
-    delete glyph;
-}
-
-void SvgFont::addGlyph(SvgGlyph* glyph)
-{
-  const char* unicode = glyph->m_unicode.c_str();
-  m_glyphs.push_back(glyph);
-  m_glyphMap.emplace(unicode, glyph);
-  m_maxUnicodeLen = std::max(m_maxUnicodeLen, (int)strlen(unicode));
-}
-
 real SvgFont::horizAdvX(const SvgGlyph* glyph) const
 {
   return glyph->m_horizAdvX >= 0 ? glyph->m_horizAdvX : m_horizAdvX;
@@ -1090,13 +1076,18 @@ real SvgFont::horizAdvX(const SvgGlyph* glyph) const
 
 std::vector<const SvgGlyph*> SvgFont::glyphsForText(const char* str) const
 {
-  std::vector<const SvgGlyph*> glyphs;
-
+  if(m_glyphMap.empty()) {
+    for(SvgGlyph* glyph : m_glyphs.get()) {
+      const char* unicode = glyph->m_unicode.c_str();
+      m_glyphMap.emplace(unicode, glyph);
+      m_maxUnicodeLen = std::max(m_maxUnicodeLen, int(strlen(unicode)));
+    }
+  }
   // currently, missing-glyph node is distinguished by empty key - probably should store explicitly instead
   auto dg = m_glyphMap.find("");
   const SvgGlyph* defaultGlyph = dg != m_glyphMap.end() ? dg->second : NULL;
-
-  int len = strlen(str);
+  std::vector<const SvgGlyph*> glyphs;
+  int len = int(strlen(str));
   for(int ii = 0; ii < len; ++ii) {
     const SvgGlyph* glyph = defaultGlyph;
     // find glyph with longest matching unicode sequence

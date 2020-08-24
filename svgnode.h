@@ -433,6 +433,8 @@ public:
   Image m_image;
   Rect m_bounds;
   std::string m_linkStr;
+
+  Rect srcRect;
 };
 
 class SvgPath : public SvgNode
@@ -493,6 +495,7 @@ class SvgTspan : public SvgNode
 {
 public:
   // for <text>ABC<tspan>123</tspan>DEF</text>, isTspan = true for 123 and false for ABC and DEF
+  // TODO: change to a Type flag, so we can also store <a> (or just inherit from SvgContainerNode?)
   SvgTspan(bool isTspan = true, const char* text = "") : m_isTspan(isTspan), m_text(text) {}
   SvgTspan(const SvgTspan& other) : SvgNode(other), m_isTspan(other.m_isTspan),
       m_x(other.m_x), m_y(other.m_y), m_tspans(this, other.m_tspans), m_text(other.m_text) {}
@@ -544,17 +547,21 @@ class SvgFont : public SvgNode
 {
 public:
   SvgFont(real horizAdvX) : m_horizAdvX(horizAdvX) {}
-  ~SvgFont() override;
+  // glyphMap of copy is empty - updated in glyphsForText
+  SvgFont(const SvgFont& other) : SvgNode(other), m_familyName(other.m_familyName),
+      m_unitsPerEm(other.m_unitsPerEm), m_horizAdvX(other.m_horizAdvX),
+      m_maxUnicodeLen(other.m_maxUnicodeLen), m_glyphs(this, other.m_glyphs), m_kerning(other.m_kerning) {}
   Type type() const override { return FONT; }
   SvgFont* clone() const override { return new SvgFont(*this); }
 
   void setFamilyName(const char* name) { m_familyName = name; }
   const char* familyName() const { return m_familyName.c_str(); }
   void setUnitsPerEm(real x) { m_unitsPerEm = x; }
-  void addGlyph(SvgGlyph* glyph);
+  void addGlyph(SvgGlyph* glyph) { m_glyphs.get().push_back(glyph); }
   std::vector<const SvgGlyph*> glyphsForText(const char* str) const;
   real horizAdvX(const SvgGlyph* glyph) const;
   real kerningForPair(const SvgGlyph* g1, const SvgGlyph* g2) const;
+  std::vector<SvgGlyph*>& glyphs() { return m_glyphs.get(); }
 
   struct Kerning { std::string g1,g2,u1,u2; real k; };
 
@@ -562,8 +569,8 @@ public:
   std::string m_familyName;
   real m_unitsPerEm = 0;
   real m_horizAdvX;
-  int m_maxUnicodeLen = 0;
-  std::vector<SvgGlyph*> m_glyphs;
-  std::unordered_map<std::string, SvgGlyph*> m_glyphMap;
+  mutable int m_maxUnicodeLen = 0;
+  cloning_container< std::vector<SvgGlyph*> > m_glyphs;
+  mutable std::unordered_map<std::string, SvgGlyph*> m_glyphMap;
   std::vector<Kerning> m_kerning;
 };
