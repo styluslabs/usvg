@@ -4,6 +4,7 @@
 
 
 const char* SvgLength::unitNames[] = {"px", "pt", "em", "ex", "%"};
+real SvgLength::defaultDpi = 96;
 
 // we could add a separate constexpr fn to do this mapping at compile time for things like case labels,
 //  e.g. case SVG_ATTR("fill"):  but I'm not sure the extra complication is worthwhile
@@ -791,8 +792,8 @@ void SvgDocument::setUseSize(real w, real h)
 
 Rect SvgDocument::viewportRect() const
 {
-  real w = width().value;
-  real h = height().value;
+  real w = width().px();
+  real h = height().px();
   if(width().isPercent() || height().isPercent()) {
     SvgDocument* parent_doc = parent() ? parent()->document() : NULL;
     Rect canvas = parent_doc ? parent_doc->bounds() : canvasRect();

@@ -673,7 +673,7 @@ void PdfWriter::_draw(const SvgImage* node)
   mEntries.emplace_back(id);
   ImageEntry& entry = mEntries.back();
 
-  if(hasalpha || node->m_image.imageFormat == Image::PNG) {
+  if(hasalpha || node->m_image.encoding != Image::JPEG) {
     unsigned char* maskdata = new unsigned char[npx];
     unsigned char* rgbdata = new unsigned char[3*npx];
     unsigned char* rgbp = rgbdata;

@@ -54,8 +54,6 @@ static struct svgNamedColors_CHECK_t { svgNamedColors_CHECK_t() {
     ASSERT(std::is_sorted(std::begin(svgNamedColors), std::end(svgNamedColors))); }} svgNamedColors_CHECK;
 #endif
 
-real SvgParser::defaultDpi = 96;
-
 // realToStr and strToReal take the most cycles, so could try github.com/miloyip/itoa-benchmark/
 // There's also github.com/miloyip/dtoa-benchmark/ for float to str, but I don't think any of these
 //  would beat our int approach if fully optimized
@@ -582,10 +580,8 @@ SvgNode* SvgParser::createImageNode()
     while(!targetref.isEmpty() && !targetref.startsWith("base64,"))
       ++targetref;
     if(!targetref.isEmpty()) {
-      size_t declen;
-      unsigned char* dec64 = base64_decode(targetref.constData()+7, targetref.size()-7, NULL, &declen);
-      image = Image::decodeBuffer(dec64, declen);
-      free(dec64);
+      auto dec64 = base64_decode(targetref.constData()+7, targetref.size()-7);
+      image = Image::decodeBuffer(dec64.data(), dec64.size());
       if(image.width > 0 && image.height > 0)
         target = NULL;
     }
@@ -1042,13 +1038,13 @@ void SvgParser::parse(XmlStreamReader* const xml)
     //    if(strcmp(xml->name(), "svg") != 0)
     //        break;
     case XmlStreamReader::EndElement:
-      done = m_nodes.empty();
-      if(!done) {
+      if(!m_nodes.empty()) {
         endElement(xml->name());
         // save a copy of style node as fragment to preserve it
         if(StringRef(xml->name()) == "style" && m_nodes.back()->asContainerNode())
           m_nodes.back()->asContainerNode()->addChild(new SvgXmlFragment(xml->readNodeAsFragment()));
       }
+      done = m_nodes.empty();
       break;
     case XmlStreamReader::CData:
       cdata(xml->text());

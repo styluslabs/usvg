@@ -302,15 +302,15 @@ void SvgWriter::_serialize(SvgImage* node)
     bool scaleimg = saveImageScaled > 0 && tf_bounds.width() > 10 && tf_bounds.height() > 10
         && (scaledw < 0.75*img.width || scaledh < 0.75*img.height);
     // compress image
-    auto buff = scaleimg ? img.scaled(scaledw, scaledh).encode() : img.encode();
+    Image::Encoding fmt = img.encoding == Image::JPEG && !img.hasTransparency() ? Image::JPEG : Image::PNG;
+    auto buff = scaleimg ? img.scaled(scaledw, scaledh).encode(fmt) : img.encode(fmt);
 
-    std::string prefix = std::string("data:image/") + img.formatName() + ";base64,";
-    size_t base64len;
-    base64_encode(NULL, buff.size(), NULL, &base64len);  // get encoded size
-    base64len += 1;  // account for \0 terminator
-    char* base64 = new char[base64len + prefix.size()];
+    std::string prefix = std::string("data:image/") + (fmt == Image::JPEG ? "jpeg" : "png") + ";base64,";
+    size_t base64len = base64_enclen(buff.size()) + prefix.size() + 1;  // account for \0 terminator
+    char* base64 = new char[base64len];
     strcpy(base64, prefix.c_str());
-    base64_encode((const unsigned char*)buff.data(), buff.size(), base64 + prefix.size(), &base64len);
+    base64_encode(buff.data(), buff.size(), base64 + prefix.size());
+    base64[base64len - 1] = '\0';
     xml.writeAttribute("xlink:href", base64);
     delete[] base64;
   }

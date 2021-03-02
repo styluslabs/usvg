@@ -89,11 +89,13 @@ public:
   SvgLength(real v = NAN, Units u = PX) : value(v), units(u) {}
   bool isValid() const { return !std::isnan(value); }
   bool isPercent() const { return units == PERCENT; }
+  real px(real dpi = defaultDpi) const { return units == PT ? value*dpi/72 : value; }
 
   friend bool operator==(const SvgLength& a, const SvgLength& b) { return a.value == b.value && a.units == b.units; }
   friend bool operator!=(const SvgLength& a, const SvgLength& b) { return !(a == b); }
 
   static const char* unitNames[];
+  static real defaultDpi;
 };
 
 // extension class interface

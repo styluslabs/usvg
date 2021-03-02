@@ -27,7 +27,6 @@ public:
 
   real dpi() const { return m_dpi; }
   void setDpi(real dpi) { m_dpi = dpi; }
-  static real defaultDpi;
 
   // optional handler to return stream for a file name - to support, e.g., embedded resources
   static std::function<std::istream*(const char*)> openStream;
@@ -42,7 +41,7 @@ private:
   std::vector<State> m_states;
   State& currState() { return m_states.back(); }
 
-  real m_dpi = defaultDpi;
+  real m_dpi = SvgLength::defaultDpi;
 
   struct NodeAttribute {
     const char* name;

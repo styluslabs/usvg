@@ -35,7 +35,7 @@ static real parseFontSize(const char* value)
   // to support relative sizes, we should store font-size w/ units!
   SvgLength size = parseLength(value, NaN);
   if(!std::isnan(size.value))
-    return size.units == SvgLength::PT ? (size.value * SvgParser::defaultDpi/72) : size.value;
+    return size.px();
 
   int idx = parseEnum(value, fontSize);
   return idx >= 0 ? sizeTable[idx] : 0;
