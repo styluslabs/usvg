@@ -26,6 +26,7 @@ void SvgPainter::drawNode(const SvgNode* node, const Rect& dirty)
 
 Rect SvgPainter::nodeBounds(const SvgNode* node)
 {
+  //if(!node->isPaintable()) return;  -- just needed for <symbol> - reenable when problem appears again
   p->save();
   // sets default style on the painter if we are top level; might be better to let caller call initPainter()
   initPainter();
@@ -118,7 +119,7 @@ void SvgPainter::clearDirty(const SvgNode* node)
   }
 }
 
-// this is only used for <defs>
+// this is only used for <defs> and <symbol> (outside <defs>)
 static void clearRenderedBounds(const SvgNode* node)
 {
   node->m_renderedBounds = Rect();
@@ -140,9 +141,14 @@ static void clearRenderedBounds(const SvgNode* node)
 // Also ... can we come up w/ a better naming convention than draw() / _draw()?
 void SvgPainter::draw(const SvgNode* node)
 {
-  Rect bounds = node->bounds();
-  if(!dirtyRect.intersects(bounds))
-    return;
+  Rect bbox;
+  if(!insideUse) {
+    bbox = node->bounds();
+    if(!dirtyRect.intersects(bbox))
+      return;
+  }
+  else if(dirtyRect.isValid() && !dirtyRect.intersects(bounds(node)))
+      return;
 
   p->save();
   extraStates.push_back(extraStates.back());
@@ -169,7 +175,8 @@ void SvgPainter::draw(const SvgNode* node)
 
   extraStates.pop_back();
   p->restore();
-  node->m_renderedBounds = bounds;
+  if(!insideUse)
+    node->m_renderedBounds = bbox;
 }
 
 void SvgPainter::drawChildren(const SvgContainerNode* node)
@@ -180,7 +187,7 @@ void SvgPainter::drawChildren(const SvgContainerNode* node)
       // should m_renderedBounds be updated in clearDirty() instead?
       // note that we don't need to clear renderedBounds for children of invisible node, since renderedBounds
       //  for children won't be accessed until after node is made visible and rendered again
-      if(child->type() == SvgNode::DEFS)
+      if(child->type() == SvgNode::DEFS || child->type() == SvgNode::SYMBOL)
         clearRenderedBounds(child);
       else
         child->m_renderedBounds = Rect();
@@ -205,8 +212,8 @@ Rect SvgPainter::bounds(const SvgNode* node)
     case SvgNode::RECT:   //[[fallthrough]]
     case SvgNode::PATH:   b = _bounds(static_cast<const SvgPath*>(node));  break;
     // <symbol> is excluded by isVisible() check in childrenBounds; this is only hit from _bounds(SvgUse*)
-    case SvgNode::SYMBOL: //[[fallthrough]]
-    case SvgNode::G:      b = _bounds(static_cast<const SvgContainerNode*>(node));  break;
+    case SvgNode::SYMBOL: //[[fallthrough]]   // childrenBounds called directly just for shorter stack traces
+    case SvgNode::G:      b = childrenBounds(static_cast<const SvgContainerNode*>(node));  break;
     case SvgNode::IMAGE:  b = _bounds(static_cast<const SvgImage*>(node));  break;
     case SvgNode::USE:    b = _bounds(static_cast<const SvgUse*>(node));  break;
     case SvgNode::TEXT:   b = _bounds(static_cast<const SvgText*>(node));   break;
@@ -266,6 +273,7 @@ void SvgPainter::applyStyle(const SvgNode* node)
   else if(node->type() == SvgNode::PATTERN)
     p->setTransform(initialTransform);
 
+  bool fillCurrColor = false, strokeCurrColor = false;
   for(const SvgAttr& attr : node->attrs) {
     // originally, we just had a bunch of if/else w/ string compares, but that was showing up in profiling
     switch(attr.stdAttr()) {
@@ -279,14 +287,16 @@ void SvgPainter::applyStyle(const SvgNode* node)
         if(state.fillServer && state.fillServer->type() == SvgNode::GRADIENT)
           p->setFillBrush(gradientBrush(static_cast<const SvgGradient*>(state.fillServer), node));
       }
-      else if(attr.valueIs(SvgAttr::IntVal) && attr.intVal() == SvgStyle::currentColor)
-        p->setFillBrush(state.currentColor);
+      fillCurrColor = attr.valueIs(SvgAttr::IntVal) && attr.intVal() == SvgStyle::currentColor;
       break;
     case SvgAttr::FILL_OPACITY:  state.fillOpacity = attr.floatVal();  break;
     case SvgAttr::FILL_RULE:  state.fillRule = Path2D::FillRule(attr.intVal());  break;
-    case SvgAttr::FONT_FAMILY:  resolveFontFamily(node->document(), attr.stringVal());  break;
+    case SvgAttr::FONT_FAMILY:  state.fontFamily = &attr;  resolveFont(node->document());  break;
     case SvgAttr::FONT_SIZE:  p->setFontSize(attr.floatVal());  break;
-    case SvgAttr::FONT_STYLE:  p->setFontStyle(Painter::FontStyle(attr.intVal()));  break;
+    case SvgAttr::FONT_STYLE:
+      p->setFontStyle(Painter::FontStyle(attr.intVal()));
+      resolveFont(node->document());
+      break;
     case SvgAttr::FONT_VARIANT:  p->setCapitalization(Painter::FontCapitalization(attr.intVal()));  break;
     case SvgAttr::FONT_WEIGHT:
       if(attr.intVal() == SvgStyle::BolderFont)
@@ -295,6 +305,7 @@ void SvgPainter::applyStyle(const SvgNode* node)
         p->setFontWeight(std::max(p->fontWeight() - 100, 100));
       else
         p->setFontWeight(attr.intVal());
+      resolveFont(node->document());
       break;
     case SvgAttr::OPACITY:  p->setOpacity(attr.floatVal() * p->opacity());  break;
     case SvgAttr::SHAPE_RENDERING:  p->setAntiAlias(attr.intVal() != SvgStyle::NoAntialias);  break;
@@ -306,8 +317,7 @@ void SvgPainter::applyStyle(const SvgNode* node)
         if(state.strokeServer && state.strokeServer->type() == SvgNode::GRADIENT)
           p->setStrokeBrush(gradientBrush(static_cast<const SvgGradient*>(state.strokeServer), node));
       }
-      else if(attr.valueIs(SvgAttr::IntVal) && attr.intVal() == SvgStyle::currentColor)
-        p->setStrokeBrush(state.currentColor);
+      strokeCurrColor = attr.valueIs(SvgAttr::IntVal) && attr.intVal() == SvgStyle::currentColor;
       break;
     case SvgAttr::STROKE_LINECAP:  p->setStrokeCap(Painter::CapStyle(attr.intVal()));  break;
     case SvgAttr::STROKE_LINEJOIN:  p->setStrokeJoin(Painter::JoinStyle(attr.intVal()));  break;
@@ -321,6 +331,11 @@ void SvgPainter::applyStyle(const SvgNode* node)
     default: break;
     }
   }
+  // to support using and setting color on same node
+  if(fillCurrColor)
+    p->setFillBrush(state.currentColor);
+  if(strokeCurrColor)
+    p->setStrokeBrush(state.currentColor);
 
   if(node->hasExt())
     node->ext()->applyStyle(this);
@@ -341,8 +356,9 @@ Brush SvgPainter::gradientBrush(const SvgGradient* gradnode, const SvgNode* dest
   return b;
 }
 
-void SvgPainter::resolveFontFamily(SvgDocument* doc, const char* families)
+void SvgPainter::resolveFont(SvgDocument* doc)  //, const char* families)
 {
+  const char* families = extraState().fontFamily ? extraState().fontFamily->stringVal() : "";
   std::vector<StringRef> fams = splitStringRef(families, ",");
   for(StringRef fam : fams) {
     StringRef t = fam.trimmed();
@@ -350,7 +366,7 @@ void SvgPainter::resolveFontFamily(SvgDocument* doc, const char* families)
       t = t.substr(1, t.size() - 2);
     std::string family = t.toString();
 
-    SvgFont* svgfont = doc ? doc->svgFont(family.c_str()) : NULL;
+    SvgFont* svgfont = doc ? doc->svgFont(family.c_str(), p->fontWeight(), p->fontStyle()) : NULL;
     if(svgfont)
       extraState().svgFont = svgfont;
     else if(!p->setFontFamily(family.c_str()))
@@ -438,8 +454,7 @@ void SvgPainter::_draw(const SvgDocument* doc)
   p->clipRect(doc->m_viewBox.isValid() ? doc->m_viewBox : doc->viewportRect());
 #endif
 
-  // TODO: probably will need to pad final dirtyRect!
-  if(dirtyRect.isValid())
+  if(dirtyRect.isValid() || insideUse)
     drawChildren(doc);
   dirtyRect = oldDirty;
 }
@@ -508,26 +523,39 @@ void SvgPainter::_draw(const SvgPath* node)
 
 void SvgPainter::_draw(const SvgUse* node)
 {
+  const SvgNode* target = node->target();
+  if(!target)  // should not normally happen since node will have invalid bounds
+    return;
   Rect m_bounds = node->viewport(); //m_bounds;
   Transform2D oldtf = p->getTransform();
   p->translate(m_bounds.origin());
   // previously, we were getting content bounds and scaling to fit m_bounds ... that was incorrect
   // SVG spec says <use> width/height are transferred to target if <svg> and otherwise are ignored ... in
   //  which case content will not be clipped to the bounds (although we could still consider clipping)!
-  const SvgNode* target = node->target();
   if(target->type() == SvgNode::DOC)
     ((SvgDocument*)target)->setUseSize(m_bounds.width(), m_bounds.height());
   // transform dirty rect into local coords since <use> contents bounds are in local coords (since parent = 0)
   Rect oldDirty = dirtyRect;
-  if(insideUse++ == 0)  // we only transform dirtyRect for the top-most <use>, so keep track!
-    dirtyRect = (p->getTransform().inverse() * initialTransform).mapRect(dirtyRect);
+
+  Rect nodebounds = node->cachedBounds();
+  if(insideUse++ == 0) {  // we only transform dirtyRect for the top-most <use>, so keep track!
+    // you're just begging for agonizing bugs here ... should just always clear dirtyRect
+    if(dirtyRect.contains(nodebounds) || nodebounds.width()*nodebounds.height() < 10000)
+      dirtyRect = Rect();
+    else {
+      target->invalidateBounds(true);
+      dirtyRect = initialTransform.mapRect(dirtyRect);
+    }
+  }
   draw(target);
-  --insideUse;
+  if(--insideUse == 0 && dirtyRect.isValid())
+    target->invalidateBounds(true);
+
   dirtyRect = oldDirty;
   p->setTransform(oldtf);
   if(target->type() == SvgNode::DOC)
     ((SvgDocument*)target)->setUseSize(0, 0);
-  target->m_renderedBounds.rectUnion(node->cachedBounds());
+  target->m_renderedBounds.rectUnion(nodebounds);  //node->cachedBounds());
 }
 
 void SvgPainter::_draw(const SvgText* node)
@@ -558,11 +586,6 @@ Rect SvgPainter::_bounds(const SvgDocument* doc)
     return childrenBounds(doc);
 
   return p->getTransform().mapRect(doc->viewportRect());
-}
-
-Rect SvgPainter::_bounds(const SvgContainerNode* node)
-{
-  return childrenBounds(node);
 }
 
 Rect SvgPainter::_bounds(const SvgImage* node)

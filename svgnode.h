@@ -128,8 +128,8 @@ protected:
 class SvgNode
 {
 public:
-  enum Type { DOC = 0, G, A, DEFS, SYMBOL, PATTERN, GRADIENT, STOP, FONT, GLYPH, ARC, CIRCLE, ELLIPSE, IMAGE,
-      LINE, PATH, POLYGON, POLYLINE, RECT, TEXT, TSPAN, USE, UNKNOWN, CUSTOM };
+  enum Type { DOC = 0, G, A, DEFS, SYMBOL, PATTERN, GRADIENT, STOP, FONT, FONTFACE, GLYPH, ARC, CIRCLE,
+      ELLIPSE, IMAGE, LINE, PATH, POLYGON, POLYLINE, RECT, TEXT, TSPAN, USE, UNKNOWN, CUSTOM };
 
   static const int NUM_NODE_TYPES = CUSTOM+1;
   static const char* nodeNames[];
@@ -164,7 +164,7 @@ public:
   Transform2D totalTransform() const;
 
   void invalidate(bool children) const;
-  virtual void invalidateBounds(bool children) const;
+  virtual void invalidateBounds(bool inclChildren, bool inclParents = true) const;
   virtual bool restyle();
   void setDirty(DirtyFlag type) const;
 
@@ -229,8 +229,9 @@ class SvgXmlFragment : public SvgNode
 public:
   std::unique_ptr<XmlFragment> fragment;
   SvgXmlFragment(XmlFragment* frag) : fragment(frag) {}
+  SvgXmlFragment(const SvgXmlFragment& other) : SvgNode(other), fragment(other.fragment->clone()) {}
   Type type() const override { return UNKNOWN; }
-  SvgXmlFragment* clone() const override { return new SvgXmlFragment(fragment->clone()); }
+  SvgXmlFragment* clone() const override { return new SvgXmlFragment(*this); }
 };
 
 // Should we rename this to SvgForeignNode (type FOREIGN; serialize as <foreignObject>)?
@@ -271,7 +272,7 @@ public:
   SvgContainerNode* clone() const override = 0;  // this is needed to clone container nodes w/o casting result
   SvgContainerNode* asContainerNode() override { return this; }
   const SvgContainerNode* asContainerNode() const override { return this; }
-  void invalidateBounds(bool inclChildren) const override;
+  void invalidateBounds(bool inclChildren, bool inclParents = true) const override;
   bool restyle() override;
 
   void addChild(SvgNode* child, SvgNode* next = NULL);
@@ -396,7 +397,7 @@ public:
   Transform2D viewBoxTransform() const;
 
   void addSvgFont(SvgFont*);
-  SvgFont* svgFont(const char* family) const;
+  SvgFont* svgFont(const char* family, int weight = 400, Painter::FontStyle = Painter::StyleNormal) const;
   void addNamedNode(SvgNode* node);
   void removeNamedNode(SvgNode* node);
   SvgNode* namedNode(const char* id) const;
@@ -412,7 +413,7 @@ public:
   bool m_preserveAspectRatio = true;
   Rect m_canvasRect;
 
-  std::unordered_map<std::string, SvgFont*> m_fonts;
+  std::unordered_multimap<std::string, SvgFont*> m_fonts;  // key is family name, can have >1 style per family
   std::unordered_map<std::string, SvgNode*> m_namedNodes;
 #ifndef NO_DYNAMIC_STYLE
   // if we use unique_ptr, have to create boilerplate copy constructor
@@ -482,6 +483,7 @@ public:
   void setTarget(const SvgNode* link);
   const SvgNode* target() const;
   const char* href() const { return m_linkStr.c_str(); }
+  void setHref(const char* s) { m_linkStr = s;  m_link = NULL;  invalidate(false); }
   // probably should have separate fns for x,y,width,height
   Rect viewport() const { return m_viewport; }
   void setViewport(const Rect& r) { m_viewport = r; }
@@ -545,17 +547,26 @@ public:
   real m_horizAdvX = NaN;
 };
 
+class SvgFontFace : public SvgNode
+{
+public:
+  Type type() const override { return FONTFACE; }
+  SvgFontFace* clone() const override { return new SvgFontFace(*this); }
+};
+
 class SvgFont : public SvgNode
 {
 public:
   SvgFont(real horizAdvX) : m_horizAdvX(horizAdvX) {}
   // glyphMap of copy is empty - updated in glyphsForText
   SvgFont(const SvgFont& other) : SvgNode(other), m_familyName(other.m_familyName),
-      m_unitsPerEm(other.m_unitsPerEm), m_horizAdvX(other.m_horizAdvX),
-      m_maxUnicodeLen(other.m_maxUnicodeLen), m_glyphs(this, other.m_glyphs), m_kerning(other.m_kerning) {}
+      m_unitsPerEm(other.m_unitsPerEm), m_horizAdvX(other.m_horizAdvX), m_maxUnicodeLen(other.m_maxUnicodeLen),
+      m_glyphs(this, other.m_glyphs), m_kerning(other.m_kerning), m_fontface(other.m_fontface->clone()) {}
   Type type() const override { return FONT; }
   SvgFont* clone() const override { return new SvgFont(*this); }
 
+  void setFontFaceNode(SvgFontFace* fontface) { m_fontface.reset(fontface); }
+  const SvgFontFace* fontFace() const { return m_fontface.get(); }
   void setFamilyName(const char* name) { m_familyName = name; }
   const char* familyName() const { return m_familyName.c_str(); }
   void setUnitsPerEm(real x) { m_unitsPerEm = x; }
@@ -575,4 +586,5 @@ public:
   cloning_container< std::vector<SvgGlyph*> > m_glyphs;
   mutable std::unordered_map<std::string, SvgGlyph*> m_glyphMap;
   std::vector<Kerning> m_kerning;
+  std::unique_ptr<SvgFontFace> m_fontface;
 };

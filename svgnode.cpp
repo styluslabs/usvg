@@ -42,8 +42,8 @@ bool operator==(const SvgAttr& a, const SvgAttr& b)
 
 // mapping from SvgNode::Type to name
 const char* SvgNode::nodeNames[] = {"svg", "g", "a", "defs", "symbol", "pattern", "gradient", "stop", "font",
-    "glyph", "arc", "circle", "ellipse", "image", "line", "path", "polygon", "polyline", "rect", "text",
-    "tspan", "use", "unknown", "custom" };
+    "font-face", "glyph", "arc", "circle", "ellipse", "image", "line", "path", "polygon", "polyline", "rect",
+    "text", "tspan", "use", "unknown", "custom" };
 
 Transform2D SvgNode::identityTransform;
 
@@ -123,7 +123,7 @@ void SvgNode::invalidate(bool children) const
   setDirty(BOUNDS_DIRTY);
 }
 
-void SvgNode::invalidateBounds(bool children) const
+void SvgNode::invalidateBounds(bool inclChildren, bool inclParents) const
 {
   /*if(!m_cachedBounds.isValid()) {
     // what about <svg>, whose bounds may not depend on children???
@@ -136,8 +136,8 @@ void SvgNode::invalidateBounds(bool children) const
   m_cachedBounds = Rect();
   // minor optimization: if a node's bounds are valid, then all children bounds are valid, thus if our bounds
   //  are already invalid, we could skip this since parent bounds should also be invalidated already
-  if(m_parent && isVisible())
-    m_parent->invalidateBounds(false);
+  if(inclParents && m_parent && isVisible())
+    m_parent->invalidateBounds(false, true);
 }
 
 // TODO: clear transform if tf is identity?
@@ -654,12 +654,12 @@ SvgNode* SvgContainerNode::nodeAt(const Point& p, bool visual_only) const
   return (visual_only || !bounds().contains(p)) ? NULL : const_cast<SvgContainerNode*>(this);
 }
 
-void SvgContainerNode::invalidateBounds(bool inclChildren) const
+void SvgContainerNode::invalidateBounds(bool inclChildren, bool inclParents) const
 {
-  SvgNode::invalidateBounds(inclChildren);
+  SvgNode::invalidateBounds(inclChildren, inclParents);
   if(inclChildren) {
     for(SvgNode* node : children())
-      node->invalidateBounds(true);
+      node->invalidateBounds(true, false);
   }
 }
 
@@ -746,6 +746,12 @@ static void replaceId(SvgNode* node, const char* oldid, const char* newid)
     for(SvgNode* child : node->asContainerNode()->children())
       replaceId(child, oldid, newid);
   }
+  else if(node->type() == SvgNode::USE) {
+    SvgUse* usenode = static_cast<SvgUse*>(node);
+    const char* usehref = usenode->href();
+    if(usehref && usehref[0] == '#' && strcmp(usehref+1, oldid) == 0)
+      usenode->setHref(newid);
+  }
 }
 
 // if dest != NULL, only ids conflicting with dest are replaced; otherwise, all are replaced
@@ -829,13 +835,24 @@ void SvgDocument::addSvgFont(SvgFont* font)
   m_fonts.emplace(font->familyName(), font);
 }
 
-SvgFont* SvgDocument::svgFont(const char* family) const
+SvgFont* SvgDocument::svgFont(const char* family, int weight, Painter::FontStyle style) const
 {
+  auto hits = m_fonts.equal_range(family);
+  // if there is only one match for family (most likely case), return that immediately
+  if(std::distance(hits.first, hits.second) == 1)
+    return const_cast<SvgFont*>(hits.first->second);
+  for(auto hit = hits.first; hit != hits.second; ++hit) {
+    if(hit->second->fontFace()->getIntAttr("font-weight", 400) == weight
+        && hit->second->fontFace()->getIntAttr("font-style", Painter::StyleNormal) == style)
+      return const_cast<SvgFont*>(hit->second);
+  }
+  if(hits.first != hits.second)
+    return const_cast<SvgFont*>(hits.first->second);
+
   SvgDocument* parent_doc;
-  auto it = m_fonts.find(family);
-  if(it == m_fonts.end() && m_parent && (parent_doc = m_parent->document()))
+  if(m_parent && (parent_doc = m_parent->document()))
     return parent_doc->svgFont(family);
-  return it != m_fonts.end() ? const_cast<SvgFont*>(it->second) : NULL;
+  return NULL;
 }
 
 void SvgDocument::addNamedNode(SvgNode* node)
@@ -968,6 +985,8 @@ void SvgRect::updatePath()
 SvgUse::SvgUse(const Rect& bounds, const char* linkStr, const SvgNode* node, SvgDocument* doc)
   : m_link(node), m_viewport(bounds), m_linkStr(linkStr), m_doc(doc) {}
 
+// NOTE: m_link is only used if m_link == m_doc or if set by setTarget() - otherwise, target is resolved
+//  every time target() is called (so, e.g., we don't get crashes if target node is removed)
 const SvgNode* SvgUse::target() const
 {
   if(m_link)

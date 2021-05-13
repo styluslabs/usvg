@@ -14,6 +14,7 @@ public:
     const SvgNode* fillServer = NULL;
     const SvgNode* strokeServer = NULL;
     const SvgAttr* dashServer = NULL;
+    const SvgAttr* fontFamily = NULL;
     Color currentColor = Color::NONE;
   };
 
@@ -42,7 +43,7 @@ private:
   void applyParentStyle(const SvgNode* node);
   void applyStyle(const SvgNode* node);
   Brush gradientBrush(const SvgGradient* gradnode, const SvgNode* dest);
-  void resolveFontFamily(SvgDocument* doc, const char* families);
+  void resolveFont(SvgDocument* doc);  //, const char* families);
 
   void draw(const SvgNode* node);
   void _draw(const SvgDocument* node);
@@ -61,7 +62,7 @@ private:
 
   Rect bounds(const SvgNode* node);
   Rect _bounds(const SvgDocument* node);
-  Rect _bounds(const SvgContainerNode* node);
+  //Rect _bounds(const SvgContainerNode* node);
   Rect _bounds(const SvgPath* node);
   Rect _bounds(const SvgImage* node);
   Rect _bounds(const SvgUse* node);

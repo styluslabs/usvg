@@ -479,6 +479,7 @@ void SvgWriter::_serialize(SvgFont* node)
   xml.writeStartElement("font-face");
   xml.writeAttribute("font-family", node->familyName());
   xml.writeAttribute("units-per-em", node->m_unitsPerEm);
+  serializeNodeAttr(node->m_fontface.get());
   xml.writeEndElement();
 
   for(SvgGlyph* glyph : node->glyphs()) {

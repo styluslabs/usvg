@@ -190,34 +190,42 @@ css_declarations* SvgCssStylesheet::createCssDecls() { return new SvgCssDecls; }
 
 void SvgCssStylesheet::applyStyle(SvgNode* node) const
 {
-  bool hasVars = false;
+  std::vector<SvgAttr> varAttrs;
   for(const css_rule& rule : rules()) {
     if(rule.select(node)) {
       for(const SvgAttr& attr : ((const SvgCssDecls*)rule.decls())->attrs) {
-        hasVars = hasVars || (attr.getFlags() & SvgAttr::Variable);
-        node->setAttr(attr);
+        if(attr.getFlags() & SvgAttr::Variable) {
+          SvgAttr* curr = const_cast<SvgAttr*>(node->getAttr(attr.name(), SvgAttr::CSSSrc));
+          if(!curr || curr->isStale())
+            varAttrs.push_back(attr);
+          // prevent replacement by a lower priority value
+          if(curr)
+            curr->setStale(false);
+          else
+            node->setAttr(attr);
+        }
+        else
+          node->setAttr(attr);
       }
     }
   }
-  if(!hasVars)  // just a little optimization
-    return;
-
   // now resolve value of all variables - separate pass needed to get correct value for vars set and
-  //  referenced on same node ... could we move this to SvgNode::restyle()?
-  for(SvgAttr& attr : node->attrs) {
-    if(attr.getFlags() & SvgAttr::Variable) {
-      // set stale to allow replacement (if variable is found) or force removal (if variable not found)
-      attr.setStale(true);
-      // find closest ancestor with the variable set
-      for(SvgNode* n = node; n; n = n->parent()) {
-        const SvgAttr* varattr = n->getAttr(attr.stringVal(), SvgAttr::CSSSrc);
-        // !isStale() to prevent use of stale attribute from same node (no ancestors will have stale attrs)
-        if(varattr && !varattr->isStale()) {
-          // note that we use setAttribute so that the value of the variable is parsed
-          if(varattr->valueIs(SvgAttr::StringVal))  // should always be true
-            node->setAttribute(attr.name(), varattr->stringVal(), SvgAttr::CSSSrc);
-          break;
-        }
+  //  referenced on same node; separate varAttrs list used instead of writing unresolved attrs to node
+  //  (previous behavior) to prevent unnecessary dirtying of node
+  for(const SvgAttr& attr : varAttrs) {
+    // allow replacement (or force removal if unresolved)
+    SvgAttr* curr = const_cast<SvgAttr*>(node->getAttr(attr.name(), SvgAttr::CSSSrc));
+    if(curr)
+      curr->setStale(true);
+    // find closest ancestor with the variable set
+    for(SvgNode* n = node; n; n = n->parent()) {
+      const SvgAttr* valattr = n->getAttr(attr.stringVal(), SvgAttr::CSSSrc);
+      // !isStale() to prevent use of stale attribute from same node (no ancestors will have stale attrs)
+      if(valattr && !valattr->isStale()) {
+        // note that we use setAttribute so that the value of the variable is parsed
+        if(valattr->valueIs(SvgAttr::StringVal))  // should always be true
+          node->setAttribute(attr.name(), valattr->stringVal(), SvgAttr::CSSSrc);
+        break;
       }
     }
   }

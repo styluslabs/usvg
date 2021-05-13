@@ -815,8 +815,10 @@ static void setDocSizeForUse(SvgDocument* doc, const Rect& bbox)
 
 void PdfWriter::_draw(const SvgUse* node)
 {
-  Rect m_bounds = node->viewport();
   const SvgNode* target = node->target();
+  if(!target)
+    return;
+  Rect m_bounds = node->viewport();
   translate(m_bounds.left, m_bounds.top);
   if(target->type() == SvgNode::DOC)
     setDocSizeForUse((SvgDocument*)target, m_bounds);

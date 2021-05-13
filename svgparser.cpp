@@ -520,7 +520,7 @@ SvgFont* SvgParser::createFontNode()
   return font;
 }
 
-void SvgParser::parseFontFaceNode(SvgFont* font)
+SvgFontFace* SvgParser::parseFontFaceNode(SvgFont* font)
 {
   StringRef name = useAttribute("font-family");
   real unitsPerEm = toReal(useAttribute("units-per-em"), 1000);
@@ -530,6 +530,7 @@ void SvgParser::parseFontFaceNode(SvgFont* font)
     m_doc->addSvgFont(font);
   }
   font->setUnitsPerEm(unitsPerEm);
+  return new SvgFontFace();
 }
 
 void SvgParser::parseFontKerning(SvgFont* font)
@@ -954,13 +955,17 @@ bool SvgParser::startElement(StringRef nodeName, const XmlStreamAttributes& attr
     }
   }
   else if(parent->type() == SvgNode::FONT) {
-    if(nodeName == "glyph") node = createGlyphNode();
-    else if(nodeName == "missing-glyph") node = createGlyphNode();
-    else if(nodeName == "font-face") parseFontFaceNode(static_cast<SvgFont*>(parent));
-    else if(nodeName == "hkern") parseFontKerning(static_cast<SvgFont*>(parent));
-    // for font-face, we return false (since node == NULL) so it's consumed (not saved) as unrecognized node
-    if(node)
-      static_cast<SvgFont*>(parent)->addGlyph(static_cast<SvgGlyph*>(node));
+    SvgFont* font = static_cast<SvgFont*>(parent);
+    if(nodeName == "glyph" || nodeName == "missing-glyph") {
+      node = createGlyphNode();
+      font->addGlyph(static_cast<SvgGlyph*>(node));
+    }
+    else if(nodeName == "hkern")
+      parseFontKerning(font);
+    else if(nodeName == "font-face") {
+      node = parseFontFaceNode(font);
+      font->setFontFaceNode(static_cast<SvgFontFace*>(node));
+    }
   }
   else if(parent->asContainerNode()) {
     node = createNode(nodeName);

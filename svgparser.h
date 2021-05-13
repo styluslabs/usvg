@@ -86,7 +86,7 @@ private:
   SvgGlyph* createGlyphNode();
 
   SvgNode* parseTspanNode(SvgTspan* node);
-  void parseFontFaceNode(SvgFont* font);
+  SvgFontFace* parseFontFaceNode(SvgFont* font);
   void parseFontKerning(SvgFont* font);
   void parseBaseGradient(SvgGradient* gradNode);
 
