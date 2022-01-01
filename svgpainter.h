@@ -35,6 +35,7 @@ public:
   Rect nodeBounds(const SvgNode* node);
 
   static std::string breakText(const SvgText* node, real maxWidth);
+  static void elideText(SvgText* textnode, real maxWidth);
   static Rect calcDirtyRect(const SvgNode* node);
   static void clearDirty(const SvgNode* node);
 

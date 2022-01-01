@@ -440,7 +440,9 @@ void SvgPainter::drawPattern(const SvgPattern* pattern, const Path2D* path)
 void SvgPainter::_draw(const SvgDocument* doc)
 {
   Rect oldDirty = dirtyRect;
-  dirtyRect.rectIntersect(doc->bounds());
+  // note the use of _bounds() since applyStyle() already called by draw()
+  if(dirtyRect.isValid())
+    dirtyRect.rectIntersect(insideUse ? _bounds(doc) : doc->bounds());
 
 #ifdef DEBUG_CLIPPING
   // draw clip rect instead of actually clipping ... should this be in uvg instead?  or just delete?
@@ -837,6 +839,7 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
 #include <locale>         // std::wstring_convert
 #include <codecvt>        // std::codecvt_utf8
 
+// return text of node broken into lines of length <= maxWidth
 std::string SvgPainter::breakText(const SvgText* node, real maxWidth)
 {
   Painter painter;
@@ -869,4 +872,30 @@ std::string SvgPainter::breakText(const SvgText* node, real maxWidth)
     res.append(&s[lineStart], &s[ii]);
   while(isspace(res.back())) res.pop_back();  // handles possible trailing newline
   return cv.to_bytes(res);
+}
+
+// replace text of textnode with truncated and ellipsized version w/ length < maxWidth
+void SvgPainter::elideText(SvgText* textnode, real maxWidth)
+{
+  std::string s = textnode->text();
+  textnode->addText("...");
+  Painter painter;
+  std::vector<Rect> glyphpos = SvgPainter(&painter).glyphPositions(textnode);
+  textnode->clearText();
+  if(glyphpos.size() < 4 || glyphpos[glyphpos.size() - 4].right < maxWidth)
+    textnode->addText(s.c_str());
+  else {
+    size_t jj = glyphpos.size() - 3;
+    real overflow = glyphpos.back().right - maxWidth;
+    real elided = glyphpos[jj-1].right - overflow;
+    while(--jj > 0 && glyphpos[jj-1].right > elided) {}
+    // we want to include first jj glyphs of s
+    uint32_t codepoint, utf8_state = UTF8_ACCEPT;
+    size_t kk = 0;
+    for(; kk < s.size() && jj > 0; ++kk) {
+      if(decode_utf8(&utf8_state, &codepoint, s[kk]) == UTF8_ACCEPT)
+        --jj;
+    }
+    textnode->addText(s.substr(0, kk).append("...").c_str());
+  }
 }
