@@ -127,6 +127,9 @@ void SvgWriter::writeAttribute(const SvgAttr& attr)
       // not aligned in general
       memcpy(dashesf.data(), attr.stringVal(), attr.stringLen());
       std::vector<real> dashes(dashesf.begin(), dashesf.end());
+      // remove -1 used to terminate dash array (and any extra -1 from before this fix was added)
+      while(!dashes.empty() && dashes.back() < 0)
+        dashes.pop_back();
       writeNumbersList(xml.getTemp(), dashes, ' ');
       xml.writeAttribute(attr.name(), xml.getTemp());
     }

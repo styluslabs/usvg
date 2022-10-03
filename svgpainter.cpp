@@ -148,7 +148,7 @@ void SvgPainter::draw(const SvgNode* node)
       return;
   }
   else if(dirtyRect.isValid() && !dirtyRect.intersects(bounds(node)))
-      return;
+    return;
 
   p->save();
   extraStates.push_back(extraStates.back());
@@ -173,6 +173,7 @@ void SvgPainter::draw(const SvgNode* node)
     default: break;
   }
 
+  //p->setTransform(initialTransform);  p->fillRect(node->bounds(), Color(255,0,0,64));
   extraStates.pop_back();
   p->restore();
   if(!insideUse)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include "svgnode.h"
 
 
@@ -11,6 +12,7 @@ public:
     int width;
     int height;
     std::string content;
+    std::list<std::string> annots;
 
     Page(int w, int h, size_t mincontent = 1024) : width(w), height(h) { content.reserve(mincontent); }
   };
@@ -69,10 +71,14 @@ public:
   std::vector<ExtraState> extraStates;
   ExtraState& extraState() { return extraStates.back(); }
   int compressionLevel = 2;
+  bool anyHref = false;
 
+  PdfWriter(int npages);
   void drawNode(const SvgNode* node);
   void newPage(real w, real h, real ptsPerDim);
   void write(std::ostream& out);
+
+  std::function<SvgNode*(const char*, int*)> resolveLink;
 
   //enum { DEFAULT_WIDTH = 612, DEFAULT_HEIGHT = 792 };  8.5x11in
   static const char* FONTS[];
@@ -111,4 +117,5 @@ private:
   std::list<ImageEntry> mEntries;
   Transform2D initialTransform;
   bool hasText = false;
+  int idFontsBase, idResources, idCatalog, idPageList, idPagesBase, idImagesBase;
 };

@@ -73,17 +73,6 @@
  * y    curveto.
  ************************************************************/
 
-/*
-TODO - links:
-  /Type /Annot
-  /Subtype /Link
-  /Rect [342.0 694.5 432.0 682.5]
-  /A << /Type /Action  /S /URI  /URI (https://duckduckgo.com) >>
-or for internal link:
-  /A << /Type /Action  /S /GoTo  /D [10 0 R /XYZ 100 100 0] >>
-where arg of /D is [<page ref> /XYZ <x pos> <y pos> 0]
-*/
-
 #include <iostream>
 #include <sstream>
 #include "pdfwriter.h"
@@ -122,211 +111,179 @@ static constexpr SvgEnumVal lineJoin[] =
     {{"0 j", Painter::MiterJoin}, {"1 j", Painter::RoundJoin}, {"2 j", Painter::BevelJoin}};
 
 
-static int getImageObjectID(int index)
+PdfWriter::PdfWriter(int npages)
 {
-   // Images are stored just after our fonts
-   return PdfWriter::N_FONTS + index + 1;
+  // object ids should be consecutive to simplify
+  idFontsBase = 1;
+  idResources = idFontsBase + N_FONTS;
+  idCatalog = idResources + 1;
+  idPageList = idCatalog + 1;
+  idPagesBase = idPageList + 1;
+  idImagesBase = idPagesBase + npages;
 }
 
 void PdfWriter::write(std::ostream& out)
 {
-   std::vector<int> offsets;
+  ASSERT(pages.size() == idImagesBase - idPagesBase);
+  std::vector<long> offsets;
+  int objId = idFontsBase;
 
-   out << "%PDF-1.4" << "\n\n";  // PDF 1.4 needed for transparency
-   // standard fonts
-   // TODO: don't write fonts if hasText is false!
-   for(int i = 0; i < N_FONTS; i ++) {
-     offsets.push_back(out.tellp());
+  out << "%PDF-1.4" << "\n\n";  // PDF 1.4 needed for transparency
+  // standard fonts ... always have to write these unless we move after page list
+  for(int ii = 0; ii < N_FONTS; ++ii) {
+    offsets.push_back(out.tellp());
+    out << objId++ << " 0 obj"               << "\n" <<
+           "<<"                              << "\n" <<
+           "   /Type     /Font"              << "\n" <<
+           "   /Subtype  /Type1"             << "\n" <<
+           "   /BaseFont /" << FONTS[ii]     << "\n" <<
+           "   /Encoding /WinAnsiEncoding"   << "\n" <<
+           ">>"                              << "\n" <<
+           "endobj"                          << "\n\n";
+  }
 
-      out << (1 + i) << " 0 obj"               << "\n" <<
-             "<<"                              << "\n" <<
-             "   /Type     /Font"              << "\n" <<
-             "   /Subtype  /Type1"             << "\n" <<
-             "   /BaseFont /" << FONTS[i]      << "\n" <<
-             "   /Encoding /WinAnsiEncoding"   << "\n" <<
-             ">>"                              << "\n" <<
-             "endobj"                          << "\n\n";
-   }
-
-   // Store our images (if we have any)
-
-   int theID    = getImageObjectID(0);
-   int nEntries = mEntries.size();
-
-   for(ImageEntry& entry : mEntries) {
-     offsets.push_back(out.tellp());
-
-      theID = entry.mObjectID;
-      out << theID << " 0 obj" << "\n"
-          << entry.header << "\n"
-          << "stream" << "\n";
-      out.write((char*)entry.data.data(), entry.data.size());
-      out << "\n"  // this newline is not included in length
-          << "endstream" << "\n"
-          << "endobj" << "\n\n";
-   }
-
-   if(nEntries)
-      theID++;
-
-   // Now, set up an obj for our common resources,
-   // first our fonts and then any images
-
-   offsets.push_back(out.tellp());
-
-   int idResources = theID;
-
-   out << idResources << " 0 obj" << "\n" <<
-          "<<"                    << "\n" <<
-          "   /Font <<"           << "\n";
-
-   for(int i = 0; i < N_FONTS; i ++)
-      out << "      /F" << (i + 1) << " " << (i + 1) << " 0 R" << "\n";
-
-   out << "   >>"  << "\n";
-
-   // images
-   if(nEntries) {
-      out << "   /XObject <<" << "\n";
-      for(ImageEntry& entry : mEntries) {
-        out << fstring("      /Img%d %d 0 R\n", entry.mObjectID, entry.mObjectID);
-        //out << "      " << mEntries[i].mName << " " << mEntries[i].mObjectID << " 0 R" << "\n";
-      }
-      out << "   >>"  << "\n";
-   }
-
-   // hardcoded graphics states for transparency
+  // Resources object (directory of images, fonts, graphics states)
+  offsets.push_back(out.tellp());
+  ASSERT(objId == idResources);
+  out << objId++ << " 0 obj" << "\n" <<
+         "<<"                    << "\n" <<
+         "   /Font <<"           << "\n";
+  // fonts
+  for(int i = 0; i < N_FONTS; i ++)
+    out << "      /F" << (i + 1) << " " << (i + idFontsBase) << " 0 R" << "\n";
+  out << "   >>"  << "\n";
+  // images
+  if(!mEntries.empty()) {
+    out << "   /XObject <<" << "\n";
+    for(ImageEntry& entry : mEntries) {
+      out << fstring("      /Img%d %d 0 R\n", entry.mObjectID, entry.mObjectID);
+      //out << "      " << mEntries[i].mName << " " << mEntries[i].mObjectID << " 0 R" << "\n";
+    }
+    out << "   >>"  << "\n";
+  }
+  // hardcoded graphics states for transparency
   out << "  /ExtGState <<\n";
   for (int i = 0; i < 16; i++) {
-    out << fstring("  /GS%d <</ca %f>>\n", i, i/15.0f);  // fill alpha
-    out << fstring("  /GS%d <</CA %f>>\n", i+16, i/15.0f);  // stroke alpha
+    out << fstring("  /GS%d <</ca %f>>\n", i, i/15.0);  // fill alpha
+    out << fstring("  /GS%d <</CA %f>>\n", i+16, i/15.0);  // stroke alpha
   }
   out << "  >>\n";
+  // end resources
+  out << ">>\nendobj\n\n";
 
-   // end resources
-   out << ">>"     <<   "\n" <<
-          "endobj" << "\n\n";
+  // Catalog (top-level document object)
+  offsets.push_back(out.tellp());
+  ASSERT(objId == idCatalog);
+  out << objId++ << " 0 obj"             << "\n" <<
+         "<<"                              << "\n" <<
+         "   /Type /Catalog"               << "\n" <<
+         "   /Pages " << idPageList << " 0 R" << "\n" <<
+         ">>\nendobj\n\n";
 
-   // Now, our top-level object
+  // Pages object
+  ASSERT(objId == idPageList);
+  offsets.push_back(out.tellp());
+  out << objId++ << " 0 obj" << "\n" <<
+         "<<"                << "\n" <<
+         "   /Type /Pages"   << "\n";  // <<
+  //"   /MediaBox [ 0 0 " << mWidth << " " << mHeight << " ]" << "\n";
+  out << "   /Count " << pages.size() << "\n" <<
+         "   /Kids [";
+  for(int ii = 0; ii < int(pages.size()); ++ii)
+    out << " " << (idPagesBase + ii) << " 0 R";
+  out << " ]\n" << ">>\nendobj\n\n";
 
-   offsets.push_back(out.tellp());
+  // calculate size dependent object ids
+  int idAnnotsBase = idImagesBase + int(mEntries.size());
+  int nAnnots = 0;
+  for(const Page& page : pages)
+    nAnnots += page.annots.size();
+  int annotId = idAnnotsBase;
+  int idContentsBase = idAnnotsBase + nAnnots;
 
-   int idCatalog = (idResources + 1);
-   int idPages   = (idCatalog   + 1);
+  // List of pages (separate from actual contents - see below)
+  for(int ii = 0; ii < int(pages.size()); ++ii) {
+    const Page& page = pages[ii];
+    //ASSERT(out.str().size() == out.tellp());
+    offsets.push_back(out.tellp());
+    ASSERT(objId == idPagesBase + ii);
+    out << objId++ << " 0 obj"                        << "\n" <<
+           "<<"                                      << "\n" <<
+           "   /Type /Page"                          << "\n" <<
+           "   /Parent " << idPageList << " 0 R"        << "\n" <<
+           "   /MediaBox [ 0 0 " << page.width << " " << page.height << " ]\n" <<
+           "   /Contents " << (idContentsBase + ii) << " 0 R" << "\n" <<
+           "   /Resources " << idResources << " 0 R" << "\n";
+    if(!page.annots.empty()) {
+      out << "   /Annots [ ";
+      for(int jj = 0; jj < int(page.annots.size()); ++jj)
+        out << annotId++ << " 0 R ";
+      out << "]\n";
+    }
+    out << ">>\nendobj\n\n";
+  }
 
-   out << idCatalog << " 0 obj"             << "\n" <<
-          "<<"                              << "\n" <<
-          "   /Type /Catalog"               << "\n" <<
-          "   /Pages " << idPages << " 0 R" << "\n" <<
-          ">>"                              << "\n" <<
-          "endobj"                          << "\n\n";
+  // Image data
+  ASSERT(objId == idImagesBase);
+  for(ImageEntry& entry : mEntries) {
+    offsets.push_back(out.tellp());
+    ASSERT(objId == entry.mObjectID);
+    out << objId++ << " 0 obj" << "\n"
+        << entry.header << "\n"
+        << "stream" << "\n";
+    out.write((char*)entry.data.data(), entry.data.size());
+    out << "\n"  // this newline is not included in length
+        << "endstream" << "\n"
+        << "endobj" << "\n\n";
+  }
 
-   // Prepare our pages
-
-   //vector<string> pages;
-
-   //for(int i = 0, n = mPageContents.size(); i < n; i ++)
-   //   pages.push_back(mPageContents[i]);
-
-   // Append the current page but only if it is not empty
-
-   //if(mCurrentPageContents != "")
-   //   pages.push_back(mCurrentPageContents);
-
-   // Now our pages object
-
-   offsets.push_back(out.tellp());
-
-   out << idPages << " 0 obj" << "\n" <<
-          "<<"                << "\n" <<
-          "   /Type /Pages"   << "\n";  // <<
-          //"   /MediaBox [ 0 0 " << mWidth << " " << mHeight << " ]" << "\n";
-
-   out << "   /Count " << pages.size() << "\n" <<
-          "   /Kids [";
-
-   for(int i = 0, n = pages.size(); i < n; i ++)
-      out << " " << (1 + idPages + i) << " 0 R";
-
-   out <<
-      " ]"     << "\n" <<
-      ">>"     << "\n" <<
-      "endobj" << "\n\n";
-
-   // Now our pages
-
-   for(int i = 0, n = pages.size(); i < n; i ++) {
-     //ASSERT(out.str().size() == out.tellp());
+  // Annotations (links)
+  ASSERT(objId == idAnnotsBase);
+  for(const Page& page : pages) {
+    for(const std::string& annot : page.annots) {
       offsets.push_back(out.tellp());
+      out << objId++ << " 0 obj\n<<\n" << annot << ">>\nendobj\n\n";
+    }
+  }
 
-      int idPage = (1 + idPages + i);
+  // Page contents
+  ASSERT(objId == idContentsBase);
+  for(const Page& page : pages) {
+    offsets.push_back(out.tellp());
+    size_t size = page.content.size();
+    out << objId++ << " 0 obj\n";
+    if(compressionLevel > 0) {
+      size_t dest_len = size + 4096;
+      unsigned char* dest = new unsigned char[dest_len];
+      mz_compress2(dest, (mz_ulong*)&dest_len, (unsigned char*)page.content.data(), size, compressionLevel);
+      out << fstring("<< /Length %d /Filter /FlateDecode >>\nstream\n", dest_len);
+      out.write((char*)dest, dest_len);
+      delete[] dest;
+    }
+    else {
+      out << fstring("<< /Length %d >>\nstream\n", size);
+      out << page.content;
+    }
+    out << "\nendstream\nendobj\n\n";
+  }
 
-      out << idPage << " 0 obj"                        << "\n" <<
-             "<<"                                      << "\n" <<
-             "   /Type /Page"                          << "\n" <<
-             "   /Parent " << idPages << " 0 R"        << "\n" <<
-             "   /MediaBox [ 0 0 " << pages[i].width << " " << pages[i].height << " ]\n" <<
-             "   /Contents " << (idPage + n) << " 0 R" << "\n" <<
-             "   /Resources " << idResources << " 0 R" << "\n" <<
-             ">>"                                      << "\n" <<
-             "endobj"                                  << "\n\n";
-   }
+  // Xref section (byte offsets of each object in file)
+  int xrefOffset = int(out.tellp());
+  int theSize    = int(offsets.size() + 1);
+  ASSERT(objId == theSize);
+  out << "xref" << "\n" <<
+         "0 " << theSize << "\n" <<
+         "0000000000 65535 f \n";
+  for(long offset : offsets)
+    out << fstring("%010d 00000 n \n", int(offset));
 
-   // Now our page contents
-
-   int idPageContent = idPages + pages.size() + 1;
-
-   for(int i = 0, n = pages.size(); i < n; i ++) {
-     offsets.push_back(out.tellp());
-
-     size_t size = pages[i].content.size();
-     out << idPageContent << " 0 obj\n";
-     if(compressionLevel > 0) {
-       size_t dest_len = size + 4096;
-       unsigned char* dest = new unsigned char[dest_len];
-       mz_compress2(dest, (mz_ulong*)&dest_len, (unsigned char*)pages[i].content.data(), size, compressionLevel);
-       out << fstring("<< /Length %d /Filter /FlateDecode >>\nstream\n", dest_len);
-       out.write((char*)dest, dest_len);
-       out << "\n";
-       delete[] dest;
-     }
-     else {
-       out << fstring("<< /Length %d >>\nstream\n", size);
-       out << pages[i].content;
-     }
-     out << "endstream\nendobj\n\n";
-     idPageContent++;
-   }
-
-   int xrefOffset = out.tellp();
-   int theSize    = (offsets.size() + 1);
-
-   std::string append = " ";
-
-   out << "xref" << "\n" <<
-          "0 " << theSize << "\n" <<
-          "0000000000 65535 f" << append << "\n";
-
-   for(int i = 0, n = offsets.size(); i < n; i ++) {
-      std::stringstream tmp;
-
-      tmp << offsets[i];
-
-      for(int j = 0, nn = 10 - tmp.str().size(); j < nn; j ++)
-         out << "0";
-
-      out << offsets[i] << " 00000 n" << append << "\n";
-   }
-
-   out << "trailer" << "\n" <<
-          "<<"      << "\n" <<
-          "   /Size " << theSize << "\n" <<
-          "   /Root " << idCatalog << " 0 R" << "\n" <<
-          ">>" << "\n" <<
-          "startxref" << "\n" <<
-          xrefOffset << "\n"
-          "%%EOF\n";
-
+  out << "trailer" << "\n" <<
+         "<<"      << "\n" <<
+         "   /Size " << theSize << "\n" <<
+         "   /Root " << idCatalog << " 0 R" << "\n" <<
+         ">>" << "\n" <<
+         "startxref" << "\n" <<
+         xrefOffset << "\n" << "%%EOF\n";
 }
 
 // note w, h are passed in Dim units, not pts!
@@ -349,10 +306,10 @@ void PdfWriter::writef(const char* fmt, Args&&... args)
   int needed = stbsp_snprintf(&buff[0], INITIAL_SIZE, fmt, std::forward<Args>(args)...);
   if(needed >= 0) {
     if(needed > INITIAL_SIZE) {
-      buff.resize(needed+1);
+      buff.resize(size_t(needed)+1);
       stbsp_snprintf(&buff[0], needed+1, fmt, std::forward<Args>(args)...);
     }
-    buff.resize(needed);
+    buff.resize(size_t(needed));
   }
   currPage->content += buff;
   currPage->content += "\n";
@@ -499,7 +456,7 @@ void PdfWriter::applyStyle(const SvgNode* node)
         setFillColor(state.currentColor);
       break;
     case SvgAttr::FILL_RULE:  state.fillRule = Path2D::FillRule(attr.intVal());  break;
-    case SvgAttr::FILL_OPACITY:  writef("/GS%d gs", int(attr.floatVal()*15 + 0.5));  break;
+    case SvgAttr::FILL_OPACITY:  writef("/GS%d gs", int(attr.floatVal()*15 + 0.5f));  break;
     case SvgAttr::STROKE:
       if(attr.valueIs(SvgAttr::ColorVal))
         setStrokeColor(attr.colorVal());
@@ -513,7 +470,7 @@ void PdfWriter::applyStyle(const SvgNode* node)
       else if(attr.valueIs(SvgAttr::IntVal) && attr.intVal() == SvgStyle::currentColor)
         setStrokeColor(state.currentColor);
       break;
-    case SvgAttr::STROKE_OPACITY:  writef("/GS%d gs", 16 + int(attr.floatVal()*15 + 0.5));  break;
+    case SvgAttr::STROKE_OPACITY:  writef("/GS%d gs", 16 + int(attr.floatVal()*15 + 0.5f));  break;
     case SvgAttr::STROKE_WIDTH:  writef("%.3f w", attr.floatVal());  break;
     case SvgAttr::STROKE_LINECAP:  writef(enumToStr(attr.intVal(), lineCap));  break;
     case SvgAttr::STROKE_LINEJOIN:  writef(enumToStr(attr.intVal(), lineJoin));  break;
@@ -637,6 +594,38 @@ void PdfWriter::_draw(const SvgDocument* doc)
 void PdfWriter::_draw(const SvgG* node)
 {
   drawChildren(node);
+
+  if(node->groupType == SvgNode::A || anyHref) {
+    const char* href = NULL;
+    if(!(href = node->getStringAttr("xlink:href", NULL)) && !(href = node->getStringAttr("href", NULL)))
+      return;
+    std::string astr;
+    if(href[0] == '#') {
+      if(!resolveLink)
+        return;
+      int pgnum = pages.size() - 1;  // search is done backwards from this page
+      SvgNode* n = resolveLink(href, &pgnum);
+      if(!n)
+        return;
+      // get target position in coordinate system of target page
+      real ptsPerDim = initialTransform.m[0];
+      real h = n->rootDocument()->height().px() * ptsPerDim;
+      Transform2D tf(ptsPerDim, 0, 0, -ptsPerDim, 0, h);
+      Point p = tf.map(n->bounds().origin());
+      astr = fstring("/A << /Type /Action  /S /GoTo  /D [%d 0 R /XYZ %.3f %.3f 0] >>", pgnum + idPagesBase, p.x, p.y);
+    }
+    else
+      astr = fstring("/A << /Type /Action  /S /URI  /URI (%s) >>", href);
+
+    Rect r = initialTransform.mapRect(node->bounds());  // PDF rectangle: [ left bottom right top ]
+    currPage->annots.push_back( fstring(
+        "   /Type /Annot\n"
+        "   /Subtype /Link\n"
+        "   /Rect [%.3f %.3f %.3f %.3f]\n"
+        "   /BS << /W 0 >>\n"  // border width - default is 1; set to 0 to show no border
+        "   /F 4\n"
+        "   %s\n", r.left, r.bottom, r.right, r.top, astr.c_str()) );
+  }
 }
 
 #include "stb_image_write.h"
@@ -669,7 +658,7 @@ void PdfWriter::_draw(const SvgImage* node)
   int npx = wpx * hpx;
   bool hasalpha = node->m_image.hasTransparency();
 
-  int id = getImageObjectID(mEntries.size());
+  int id = idImagesBase + int(mEntries.size());
   mEntries.emplace_back(id);
   ImageEntry& entry = mEntries.back();
 
@@ -687,7 +676,7 @@ void PdfWriter::_draw(const SvgImage* node)
 
     std::string smask;
     if(hasalpha) {
-      int maskid = getImageObjectID(mEntries.size());
+      int maskid = idImagesBase + int(mEntries.size());
       mEntries.emplace_back(maskid);
       ImageEntry& maskentry = mEntries.back();
 
@@ -705,9 +694,9 @@ void PdfWriter::_draw(const SvgImage* node)
       smask = fstring("/SMask %d 0 R\n", maskid);
     }
 
-    // PDF supports standard 24-bit PNG encoding w/ DecodeParms set as below; PNG preprocesses image data
-    //  to improve compression of most images (esp. continuous tone images), although some images will
-    //  actually be slightly bigger than w/ deflate alone
+    // PDF supports standard 24-bit (NOT 32-bit) PNG encoding w/ DecodeParms set as below; PNG preprocesses
+    //  image data to improve compression of most images (esp. continuous tone images), although some images
+    //  will actually be slightly bigger than w/ deflate alone
     stbi_write_png_to_func(&stbi_write_png_idat, &entry.data, wpx, hpx, 3, rgbdata, wpx*3);
     //size_t dest_len = 3*npx + 4096;
     //entry.data.resize(dest_len);

@@ -16,7 +16,7 @@
 #include "nanovg_sw.h"
 
 // generated with xxd -i Roboto-Regular.ttf
-#include "Roboto-Regular.c"
+#include "Roboto-Regular.inl"
 
 int main(int argc, char* argv[])
 {
