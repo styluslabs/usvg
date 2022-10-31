@@ -775,6 +775,14 @@ SvgNode* SvgParser::parseTspanNode(SvgTspan* node)
 SvgNode* SvgParser::createTextNode() { return parseTspanNode(new SvgText()); }
 SvgNode* SvgParser::createTspanNode() { return parseTspanNode(new SvgTspan(true)); }
 
+SvgNode* SvgParser::createTextPathNode()
+{
+  StringRef href = useHref();
+  real offset = lengthToPx(useAttribute("startOffset"), 0);
+  SvgTextPath* node = new SvgTextPath(href.toString().c_str(), offset);
+  return parseTspanNode(node);
+}
+
 SvgNode* SvgParser::createUseNode()
 {
   real x = lengthToPx(useAttribute("x"), 0);
@@ -852,7 +860,7 @@ SvgNode* SvgParser::createNode(StringRef name)
     break;
   case 't':
     if(ref == "ext") return createTextNode();
-    if(ref == "span") return createTspanNode();
+    if(ref == "span") return createTspanNode();  // shouldn't be here since <tspan> can only be inside <text>
     break;
   case 'u':
     if(ref == "se") return createUseNode();
@@ -934,18 +942,19 @@ bool SvgParser::startElement(StringRef nodeName, const XmlStreamAttributes& attr
     m_doc = createSvgDocumentNode();
     node = m_doc;
   }
-  else if(parent->type() == SvgNode::TEXT || parent->type() == SvgNode::TSPAN) {
+  else if(parent->type() == SvgNode::TEXT || parent->type() == SvgNode::TSPAN || parent->type() == SvgNode::TEXTPATH) {
     SvgTspan* textnode = static_cast<SvgTspan*>(parent);
     if(nodeName == "tbreak") {
       textnode->addText("\n");
       m_nodes.push_back(textnode);  // hack to handle m_nodes.pop() in endElement()
       return true;
     }
-    else if(nodeName == "tspan") {
+    else if(nodeName == "tspan")
       node = createTspanNode();
-      if(node)
-        textnode->addTspan(static_cast<SvgTspan*>(node));
-    }
+    else if(nodeName == "textPath")
+      node = createTextPathNode();
+    if(node)
+      textnode->addTspan(static_cast<SvgTspan*>(node));
   }
   else if(parent->type() == SvgNode::GRADIENT) {
     if(nodeName == "stop") {
@@ -1011,7 +1020,7 @@ bool SvgParser::cdata(const char* str)
 #endif
   if(!m_nodes.empty()) {
     SvgNode* top = m_nodes.back();
-    if(top->type() == SvgNode::TEXT || top->type() == SvgNode::TSPAN)
+    if(top->type() == SvgNode::TEXT || top->type() == SvgNode::TSPAN || top->type() == SvgNode::TEXTPATH)
       static_cast<SvgTspan*>(top)->addText(str);
   }
   return true;

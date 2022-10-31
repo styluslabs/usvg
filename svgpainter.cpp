@@ -329,6 +329,7 @@ void SvgPainter::applyStyle(const SvgNode* node)
     case SvgAttr::STROKE_DASHOFFSET:  p->setDashOffset(attr.floatVal());  break;
     case SvgAttr::TEXT_ANCHOR:  state.textAnchor = attr.intVal();  break;
     case SvgAttr::VECTOR_EFFECT:  p->setVectorEffect(Painter::VectorEffect(attr.intVal()));  break;
+    case SvgAttr::LETTER_SPACING:  p->setLetterSpacing(attr.floatVal());  break;
     default: break;
     }
   }
@@ -665,6 +666,7 @@ Point SvgPainter::drawTextText(const SvgTspan* node, Point pos, real* lineh, Rec
   if(node->m_text.empty())
     return pos;
 
+  Transform2D tf0 = p->getTransform();
   bool drawing = !boundsOut && !glyphPos;
   Painter::TextAlign anchor = extraState().textAnchor;
   std::string text = node->displayText();
@@ -672,7 +674,6 @@ Point SvgPainter::drawTextText(const SvgTspan* node, Point pos, real* lineh, Rec
     const SvgFont* font = extraState().svgFont;
     std::vector<const SvgGlyph*> glyphs = font->glyphsForText(text.c_str());
 
-    Transform2D tf0 = p->getTransform();
     real scale = p->fontSize()/font->m_unitsPerEm;
     // don't scale stroke-width
     real oldStrokeWidth = p->strokeWidth();
@@ -695,7 +696,7 @@ Point SvgPainter::drawTextText(const SvgTspan* node, Point pos, real* lineh, Rec
           pos.x -= scale*w;
       }
       real kerning = ii+1 < glyphs.size() ? font->kerningForPair(glyphs[ii], glyphs[ii+1]) : 0;
-      real dx = scale*(kerning + font->horizAdvX(glyphs[ii]));
+      real dx = scale*(kerning + font->horizAdvX(glyphs[ii]) + p->letterSpacing());
       p->translate(pos);
       p->scale(scale, -scale);
       if(drawing)
@@ -721,7 +722,7 @@ Point SvgPainter::drawTextText(const SvgTspan* node, Point pos, real* lineh, Rec
       if(!textX.empty()) { pos.x = textX.back();  textX.pop_back(); }
       if(!textY.empty()) { pos.y = textY.back();  textY.pop_back(); }
 
-      if(textX.empty() && textY.empty()) {
+      if(textX.empty() && textY.empty() && textPath.empty()) {
         if(drawing)
           pos.x = p->drawText(pos.x, pos.y, str);  // draw the rest of the text
         if(glyphPos)  // boundsOut assumed to always be present if glyphPos is, so don't touch pos.x
@@ -733,17 +734,32 @@ Point SvgPainter::drawTextText(const SvgTspan* node, Point pos, real* lineh, Rec
       // advance by one codepoint
       const char* start = str;
       while(*str && decode_utf8(&utf8_state, &codepoint, *str++) != UTF8_ACCEPT) {}
+
+      if(!textPath.empty()) {
+        Point normal;
+        Point pt = textPath.positionAlongPath(pos.x - textPathOffset, &normal);
+        if(pt.isNaN())
+          continue;  // if position is not on path, glyph is not rendered
+        p->translate(pt);
+        p->rotate(atan2(-normal.x, normal.y));
+        p->translate(-pos.x, 0);  // remove the x translation passed to drawText
+      }
+
       if(drawing)
         pos.x = p->drawText(pos.x, pos.y, start, str);
       if(glyphPos)  // boundsOut assumed to always be present if glyphPos is, so don't touch pos.x
         p->textGlyphPositions(pos.x, pos.y, start, str, glyphPos);
       if(boundsOut)  // += is OK because boundsOut excludes drawing
         pos.x += p->textBounds(pos.x, pos.y, start, str, &tempBounds);
+
+      pos.x += p->letterSpacing();  // letter spacing is not included if drawing glyphs separately
+      if(!textPath.empty())
+        p->setTransform(tf0);  // restore transform
     }
     if(lineh)
       *lineh = std::max(*lineh, p->textLineHeight());
     if(boundsOut && tempBounds.isValid())
-      boundsOut->rectUnion(p->getTransform().mapRect(tempBounds));
+      boundsOut->rectUnion(tempBounds);  //boundsOut->rectUnion(p->getTransform().mapRect(tempBounds));
   }
   return pos;
 }
@@ -760,10 +776,25 @@ static std::vector<real> appendTextCoords(std::vector<real>& dest, const std::ve
   return olddest;
 }
 
+static bool resetsAnchor(const SvgTspan* node)
+{
+  return node->isLineBreak() || !node->m_x.empty() || !node->m_y.empty();
+}
+
 Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, Rect* boundsOut, std::vector<Rect>* glyphPos)
 {
-  // fake tspan has no style
-  //if(!node->isTspan()) return drawTextText(node, pos, lineh, boundsOut, glyphPos);
+  // <textPath> can be contained in <text> but not <tspan> (so can't be nested, since <text> can't be nested)
+  if(node->type() == SvgNode::TEXTPATH) {
+    const SvgTextPath* tpnode = static_cast<const SvgTextPath*>(node);
+    SvgNode* target = tpnode->document()->namedNode(tpnode->href());
+    if(!target || target->type() != SvgNode::PATH)
+      return pos;
+    Path2D* path = static_cast<SvgPath*>(target)->path();
+    // note that we have to transform before flattening
+    textPath = target->hasTransform() ? Path2D(*path).transform(target->getTransform()).toFlat() : path->toFlat();
+    //textPath.transform(p->getTransform() * target->getTransform());
+    textPathOffset = tpnode->startOffset();
+  }
 
   // between displayText() and, e.g., (our incorrect handling of) svg font ligatures, too complicated to get
   //  correct number of coords that will be consumed, so just save and restore coords
@@ -778,6 +809,8 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
     const std::vector<SvgTspan*>& m_tspans = node->tspans();
     real x0 = textX.empty() ? pos.x : textX.back();
     for(size_t ii = 0; ii < m_tspans.size(); ++ii) {
+      if(resetsAnchor(m_tspans[ii]))
+        states.textAnchor = oldTextAnchor;
       if(m_tspans[ii]->isLineBreak()) {
         // ensure that glyphPos is same length as text
         if(glyphPos)
@@ -785,7 +818,6 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
         pos.x = x0;
         pos.y += *lineh > 0 ? *lineh : p->textLineHeight();
         *lineh = 0;
-        states.textAnchor = oldTextAnchor;
       }
       else if(!m_tspans[ii]->isVisible())
         continue;
@@ -793,7 +825,7 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
         // if this line contains multiple tspans and is not left aligned, we have to determine its
         //  width before we can draw
         if(!(states.textAnchor & Painter::AlignLeft)
-            && m_tspans.size() > ii+1 && !m_tspans[ii+1]->isLineBreak()
+            && m_tspans.size() > ii+1 && !resetsAnchor(m_tspans[ii+1])
             // any additional text coords will reset text position - we basically don't handle combinations
             //  of glyph coords and textAnchor != AlignLeft
             && textX.size() <= 1 && textY.size() <= 1) {
@@ -805,7 +837,7 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
           states.textAnchor = (oldTextAnchor & ~Painter::HorzAlignMask) | Painter::AlignLeft;
           Rect dummy;  // needed to suppress drawing
           Point temppos = pos;
-          for(size_t jj = ii; jj < m_tspans.size() && !m_tspans[jj]->isLineBreak(); ++jj)
+          for(size_t jj = ii; jj < m_tspans.size() && !resetsAnchor(m_tspans[jj]); ++jj)
             temppos = drawTextTspans(m_tspans[jj], temppos, NULL, &dummy, NULL);
 
           if(oldTextAnchor & Painter::AlignHCenter)
@@ -834,6 +866,8 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
   textX.swap(textX0);
   textY0.resize(node->type() == SvgNode::TEXT ? 0 : std::min(textY0.size(), textY.size()));
   textY.swap(textY0);
+  if(node->type() == SvgNode::TEXTPATH)
+    textPath.clear();
   return pos;
 }
 

@@ -115,6 +115,8 @@ static SvgAttr processStdAttribute(SvgAttr::StdAttr stdattr, const char* value)
     return SvgAttr("vector-effect", parseEnum(value, SvgStyle::vectorEffect));
   case SvgAttr::VISIBILITY:
     return SvgAttr("visibility", parseEnum(value, SvgStyle::visibility, 1));
+  case SvgAttr::LETTER_SPACING:
+    return SvgAttr("letter-spacing", toReal(value, 0));
   default:
     return SvgAttr("", "");  // should never happen
   }

@@ -25,7 +25,7 @@ public:
   enum StdAttr { UNKNOWN = 0, COLOR, COMP_OP, DISPLAY, FILL, FILL_OPACITY, FILL_RULE, FONT_FAMILY, FONT_SIZE,
     FONT_STYLE, FONT_VARIANT, FONT_WEIGHT, OFFSET, OPACITY, SHAPE_RENDERING, STOP_COLOR, STOP_OPACITY, STROKE,
     STROKE_DASHARRAY, STROKE_DASHOFFSET, STROKE_LINECAP, STROKE_LINEJOIN, STROKE_MITERLIMIT, STROKE_OPACITY,
-    STROKE_WIDTH, TEXT_ANCHOR, VECTOR_EFFECT, VISIBILITY };
+    STROKE_WIDTH, TEXT_ANCHOR, VECTOR_EFFECT, VISIBILITY, LETTER_SPACING };
 
   static StdAttr nameToStdAttr(const char* name);
 
@@ -129,7 +129,7 @@ class SvgNode
 {
 public:
   enum Type { DOC = 0, G, A, DEFS, SYMBOL, PATTERN, GRADIENT, STOP, FONT, FONTFACE, GLYPH, ARC, CIRCLE,
-      ELLIPSE, IMAGE, LINE, PATH, POLYGON, POLYLINE, RECT, TEXT, TSPAN, USE, UNKNOWN, CUSTOM };
+      ELLIPSE, IMAGE, LINE, PATH, POLYGON, POLYLINE, RECT, TEXT, TSPAN, TEXTPATH, USE, UNKNOWN, CUSTOM };
 
   static const int NUM_NODE_TYPES = CUSTOM+1;
   static const char* nodeNames[];
@@ -532,6 +532,20 @@ public:
   SvgText() : SvgTspan(false) {}
   Type type() const override { return TEXT; }
   SvgText* clone() const override { return new SvgText(*this); }
+};
+
+class SvgTextPath : public SvgTspan
+{
+public:
+  SvgTextPath(const char* linkStr, real offset) : SvgTspan(true), m_linkStr(linkStr), m_startOffset(offset) {}
+  Type type() const override { return TEXTPATH; }
+  SvgTextPath* clone() const override { return new SvgTextPath(*this); }
+  const char* href() const { return m_linkStr.c_str(); }
+  real startOffset() const { return m_startOffset; }
+
+private:
+  std::string m_linkStr;
+  real m_startOffset;
 };
 
 class SvgGlyph : public SvgNode

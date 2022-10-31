@@ -19,7 +19,7 @@ SvgAttr::StdAttr SvgAttr::nameToStdAttr(const char* name)
     {"stroke-dashoffset", STROKE_DASHOFFSET}, {"stroke-linecap", STROKE_LINECAP},
     {"stroke-linejoin", STROKE_LINEJOIN}, {"stroke-miterlimit", STROKE_MITERLIMIT},
     {"stroke-opacity", STROKE_OPACITY}, {"stroke-width", STROKE_WIDTH}, {"text-anchor", TEXT_ANCHOR},
-    {"vector-effect", VECTOR_EFFECT}, {"visibility", VISIBILITY}
+    {"vector-effect", VECTOR_EFFECT}, {"visibility", VISIBILITY}, {"letter-spacing", LETTER_SPACING}
   };
 
   auto it = stdAttrMap.find(name);
@@ -43,7 +43,9 @@ bool operator==(const SvgAttr& a, const SvgAttr& b)
 // mapping from SvgNode::Type to name
 const char* SvgNode::nodeNames[] = {"svg", "g", "a", "defs", "symbol", "pattern", "gradient", "stop", "font",
     "font-face", "glyph", "arc", "circle", "ellipse", "image", "line", "path", "polygon", "polyline", "rect",
-    "text", "tspan", "use", "unknown", "custom" };
+    "text", "tspan", "textPath", "use", "unknown", "custom" };
+static_assert(sizeof(SvgNode::nodeNames)/sizeof(SvgNode::nodeNames[0]) == SvgNode::NUM_NODE_TYPES,
+    "nodeNodes doesn't match Type");
 
 Transform2D SvgNode::identityTransform;
 
@@ -279,6 +281,7 @@ void SvgNode::onAttrChange(const char* name, SvgAttr::StdAttr stdattr)
     case SvgAttr::STROKE_MITERLIMIT:
     case SvgAttr::STROKE_WIDTH:
     case SvgAttr::TEXT_ANCHOR:
+    case SvgAttr::LETTER_SPACING:
       invalidate(true);  // bounds may have changed
       break;
     case SvgAttr::DISPLAY:

@@ -124,7 +124,7 @@ PdfWriter::PdfWriter(int npages)
 
 void PdfWriter::write(std::ostream& out)
 {
-  ASSERT(pages.size() == idImagesBase - idPagesBase);
+  ASSERT(int(pages.size()) == idImagesBase - idPagesBase);
   std::vector<long> offsets;
   int objId = idFontsBase;
 

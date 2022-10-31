@@ -24,6 +24,8 @@ public:
   // stacks for glyph coordinates
   std::vector<real> textX;
   std::vector<real> textY;
+  Path2D textPath;
+  real textPathOffset = 0;
   Transform2D initialTransform;
   Transform2D initialTransformInv;
   Rect dirtyRect;

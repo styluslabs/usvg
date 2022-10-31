@@ -29,6 +29,7 @@ private:
   void writeAttribute(const SvgAttr& attr);
   void serializeNodeAttr(SvgNode* node);
   void serializeChildren(SvgContainerNode* node);
+  void serializeTspan(SvgTspan* node);
 
   void _serialize(SvgDocument* node);
   void _serialize(SvgG* node);
@@ -38,6 +39,7 @@ private:
   void _serialize(SvgImage* node);
   void _serialize(SvgUse* node);
   void _serialize(SvgTspan* node);
+  void _serialize(SvgTextPath* node);
   void _serialize(SvgFont* node);
   void _serialize(SvgSymbol* node);
   void _serialize(SvgPattern* node);

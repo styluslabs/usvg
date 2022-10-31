@@ -149,7 +149,8 @@ void SvgWriter::serialize(SvgNode* node)
     case SvgNode::USE:      _serialize(static_cast<SvgUse*>(node));  break;
     case SvgNode::TEXT:     _serialize(static_cast<SvgText*>(node));   break;
     case SvgNode::TSPAN:    _serialize(static_cast<SvgTspan*>(node));   break;
-    case SvgNode::DOC:      _serialize(static_cast<SvgDocument*>(node)); break;
+    case SvgNode::TEXTPATH: _serialize(static_cast<SvgTextPath*>(node));  break;
+    case SvgNode::DOC:      _serialize(static_cast<SvgDocument*>(node));  break;
     case SvgNode::SYMBOL:   _serialize(static_cast<SvgSymbol*>(node));  break;
     case SvgNode::PATTERN:  _serialize(static_cast<SvgPattern*>(node));  break;
     case SvgNode::GRADIENT: _serialize(static_cast<SvgGradient*>(node));  break;
@@ -445,10 +446,8 @@ void SvgWriter::_serialize(SvgRect* node)
   xml.writeEndElement();
 }
 
-void SvgWriter::_serialize(SvgTspan* node)
+void SvgWriter::serializeTspan(SvgTspan* node)
 {
-  xml.writeStartElement(node->type() == SvgNode::TEXT ? "text" : "tspan");
-  serializeNodeAttr(node);
   if(!node->m_x.empty()) {
     writeNumbersList(xml.getTemp(), node->m_x);
     xml.writeAttribute("x", xml.getTemp());
@@ -466,10 +465,28 @@ void SvgWriter::_serialize(SvgTspan* node)
       xml.writeEndElement();
     }
     else if(tspan->isTspan())
-      _serialize(tspan);
+      serialize(tspan);  // could be tspan or textPath
     else
-      xml.writeCharacters(tspan->text().c_str());
+      xml.writeCharacters(tspan->text().c_str());  // fake tspan for ABC in <text>ABC<tspan>DEF</tspan></text>
   }
+}
+
+void SvgWriter::_serialize(SvgTspan* node)
+{
+  xml.writeStartElement(node->type() == SvgNode::TEXT ? "text" : "tspan");
+  serializeNodeAttr(node);
+  serializeTspan(node);
+  xml.writeEndElement();
+}
+
+void SvgWriter::_serialize(SvgTextPath* node)
+{
+  xml.writeStartElement("textPath");
+  serializeNodeAttr(node);
+  if(node->startOffset() != 0)
+    xml.writeAttribute("startOffset", node->startOffset());
+  xml.writeAttribute("xlink:href", node->href());
+  serializeTspan(node);
   xml.writeEndElement();
 }
 

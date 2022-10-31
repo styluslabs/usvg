@@ -80,6 +80,7 @@ private:
   SvgNode* createSymbolNode();
   SvgNode* createTextNode();
   SvgNode* createTspanNode();
+  SvgNode* createTextPathNode();
   SvgNode* createUseNode();
   SvgNode* createStopNode();
   SvgFont* createFontNode();
