@@ -126,9 +126,10 @@ SvgAttr processAttribute(SvgAttr::Src src, const char* name, const char* value)
 {
   // should we reject attributes w/ invalid values (INT_MIN, NAN, "", ...)?
   SvgAttr::StdAttr stdattr = SvgAttr::nameToStdAttr(name);
+  SvgAttr::ExFlags inherit = strcmp(value, "inherit") == 0 ? SvgAttr::Inherit : SvgAttr::NoExFlags;
   if(stdattr == SvgAttr::UNKNOWN)
-    return SvgAttr(name, value, src);
-  return processStdAttribute(stdattr, value).setFlags(src | stdattr);
+    return SvgAttr(name, value, src | inherit);
+  return processStdAttribute(stdattr, value).setFlags(src | stdattr | inherit);
 }
 
 bool processAttribute(SvgNode* node, SvgAttr::Src src, const char* name, const char* value)

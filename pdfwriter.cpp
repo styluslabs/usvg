@@ -289,8 +289,8 @@ void PdfWriter::write(std::ostream& out)
 // note w, h are passed in Dim units, not pts!
 void PdfWriter::newPage(real w, real h, real ptsPerDim)
 {
-  w = std::ceil(w * ptsPerDim);
-  h = std::ceil(h * ptsPerDim);
+  w *= ptsPerDim;  //std::ceil(w * ptsPerDim);
+  h *= ptsPerDim;  //std::ceil(h * ptsPerDim);
   pages.emplace_back(w, h, currPage ? currPage->content.size() + 1024 : 1024);
   currPage = &pages.back();
   initialTransform = Transform2D(ptsPerDim, 0, 0, -ptsPerDim, 0, h);  // flip y
@@ -656,23 +656,36 @@ void PdfWriter::_draw(const SvgImage* node)
   int wpx = node->m_image.width;
   int hpx = node->m_image.height;
   int npx = wpx * hpx;
-  bool hasalpha = node->m_image.hasTransparency();
 
   int id = idImagesBase + int(mEntries.size());
   mEntries.emplace_back(id);
   ImageEntry& entry = mEntries.back();
 
-  if(hasalpha || node->m_image.encoding != Image::JPEG) {
+  if(node->m_image.encoding == Image::JPEG && !node->m_image.hasTransparency()) {
+    // JPEG
+    entry.data = node->m_image.encodeJPEG();
+    entry.header = fstring(
+        "<<\n/Type /XObject\n/Name /Img%d\n"
+        "/Subtype /Image\n/ColorSpace /DeviceRGB\n"
+        "/Width %d\n/Height %d\n"
+        "/BitsPerComponent 8\n/Filter /DCTDecode\n"
+        "/Length %d\n>>", id, wpx, hpx, entry.data.size());
+  }
+  else {
     unsigned char* maskdata = new unsigned char[npx];
     unsigned char* rgbdata = new unsigned char[3*npx];
     unsigned char* rgbp = rgbdata;
-    const unsigned int* pixels = node->m_image.constPixels();
+    auto bytes = node->m_image.bytesOnce();
+    const unsigned int* pixels = (const unsigned int*)bytes;
+    bool hasalpha = false;
     for(int ii = 0; ii < npx; ++ii) {
       maskdata[ii] = pixels[ii] >> Color::SHIFT_A;
+      hasalpha = hasalpha || maskdata[ii] < 255;
       *rgbp++ = (pixels[ii] >> Color::SHIFT_R) & 0xFF;
       *rgbp++ = (pixels[ii] >> Color::SHIFT_G) & 0xFF;
       *rgbp++ = (pixels[ii] >> Color::SHIFT_B) & 0xFF;
     }
+    if(bytes != node->m_image.data) free(bytes);
 
     std::string smask;
     if(hasalpha) {
@@ -713,16 +726,6 @@ void PdfWriter::_draw(const SvgImage* node)
 
     delete[] maskdata;
     delete[] rgbdata;
-  }
-  else {
-    // JPEG
-    entry.data = node->m_image.encodeJPEG();
-    entry.header = fstring(
-        "<<\n/Type /XObject\n/Name /Img%d\n"
-        "/Subtype /Image\n/ColorSpace /DeviceRGB\n"
-        "/Width %d\n/Height %d\n"
-        "/BitsPerComponent 8\n/Filter /DCTDecode\n"
-        "/Length %d\n>>", id, wpx, hpx, entry.data.size());
   }
 
   // now add command to show image in content stream

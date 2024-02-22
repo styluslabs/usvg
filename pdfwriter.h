@@ -9,12 +9,12 @@ class PdfWriter
 public:
   struct Page
   {
-    int width;
-    int height;
+    real width;
+    real height;
     std::string content;
     std::list<std::string> annots;
 
-    Page(int w, int h, size_t mincontent = 1024) : width(w), height(h) { content.reserve(mincontent); }
+    Page(real w, real h, size_t mincontent = 1024) : width(w), height(h) { content.reserve(mincontent); }
   };
 
   struct ImageEntry

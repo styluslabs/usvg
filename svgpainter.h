@@ -43,8 +43,8 @@ public:
 
 private:
   void initPainter();
-  void applyParentStyle(const SvgNode* node);
-  void applyStyle(const SvgNode* node);
+  void applyParentStyle(const SvgNode* node, bool forBounds = false);
+  void applyStyle(const SvgNode* node, bool forBounds = false);
   Brush gradientBrush(const SvgGradient* gradnode, const SvgNode* dest);
   void resolveFont(SvgDocument* doc);  //, const char* families);
 
@@ -63,7 +63,7 @@ private:
       real* lineh, Rect* boundsOut = NULL, std::vector<Rect>* glyphPos = NULL);
   Point drawTextText(const SvgTspan* node, Point pos, real* lineh, Rect* boundsOut, std::vector<Rect>* glyphPos);
 
-  Rect bounds(const SvgNode* node);
+  Rect bounds(const SvgNode* node, bool parentstyle = false);
   Rect _bounds(const SvgDocument* node);
   //Rect _bounds(const SvgContainerNode* node);
   Rect _bounds(const SvgPath* node);

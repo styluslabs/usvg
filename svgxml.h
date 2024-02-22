@@ -107,7 +107,8 @@ public:
   char* getTemp(size_t reserve = 0) { if(reserve > temp.size()) { temp.resize(reserve); } return temp.data(); }
   void saveFile(const char* filename, const char* indent = "  ")
   {
-    doc.save_file(filename, indent, pugi::format_default | pugi::format_no_declaration);
+    FileStream strm(filename, "wb");
+    save(strm, indent);  // let FileStream handle unicode on Windows instead of using pugi save_file wstring
   }
 
   void save(std::ostream& strm, const char* indent = "  ")

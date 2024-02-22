@@ -1,6 +1,7 @@
 # simple C/C++ makefile
 
-TARGET = usvgtest
+#TARGET = usvgtest
+TARGET = svgconcat
 SOURCES = \
   svgnode.cpp \
   svgstyleparser.cpp \
@@ -8,7 +9,8 @@ SOURCES = \
   svgpainter.cpp \
   svgwriter.cpp \
   cssparser.cpp \
-  test/usvgtest.cpp
+	test/svgconcat.cpp
+#  test/usvgtest.cpp
 
 SOURCES += \
   ../pugixml/src/pugixml.cpp \
@@ -31,6 +33,6 @@ INC = . .. ../nanovg-2/src
 INCSYS = ../pugixml/src ../stb
 DEFS = PUGIXML_NO_XPATH PUGIXML_NO_EXCEPTIONS NO_PAINTER_GL NO_MINIZ
 
-LIBS = 
+LIBS =
 
 include Makefile.unix

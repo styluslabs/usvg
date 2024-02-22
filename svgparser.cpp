@@ -612,6 +612,8 @@ void SvgParser::parseBaseGradient(SvgGradient* gradNode)
   StringRef trans = useAttribute("gradientTransform");
   StringRef spread = useAttribute("spreadMethod");
   StringRef units = useAttribute("gradientUnits");
+  // color-interpolation is actually a presentation attribute which can be set on any element...
+  StringRef interp = useAttribute("color-interpolation");
 
   Transform2D tf;
   if(!link.isEmpty()) {
@@ -637,6 +639,7 @@ void SvgParser::parseBaseGradient(SvgGradient* gradNode)
         {"reflect", Gradient::ReflectSpread}, {"repeat", Gradient::RepeatSpread}}, Gradient::PadSpread)));
   grad.setCoordinateMode(
     units == "userSpaceOnUse" ? Gradient::userSpaceOnUseMode : Gradient::ObjectBoundingMode);
+  grad.setColorInterp(interp == "linearRGB" ? Gradient::LinearColorInterp : Gradient::sRGBColorInterp);
 }
 
 SvgNode* SvgParser::createStopNode()
@@ -651,7 +654,8 @@ SvgNode* SvgParser::createLinearGradientNode()
   real x2 = lengthToPx(useAttribute("x2"), 1);
   real y2 = lengthToPx(useAttribute("y2"), 0);
 
-  SvgGradient* gradnode = new SvgGradient(Gradient::linear(x1, y1, x2, y2));
+  //Gradient grad = Gradient::linear(x1, y1, x2, y2);
+  SvgGradient* gradnode = new SvgGradient(Gradient::linear(x1, y1, x2, y2));  //std::move(grad));
   parseBaseGradient(gradnode);
   return gradnode;
 }
@@ -1078,7 +1082,7 @@ void SvgParser::parse(XmlStreamReader* const xml)
 #ifndef NO_DYNAMIC_STYLE
   if(m_doc && !m_stylesheet->rules().empty()) {
     m_stylesheet->sort_rules();
-    m_doc->setStylesheet(m_stylesheet.release());
+    m_doc->setStylesheet(std::move(m_stylesheet));
     m_doc->restyle();
   }
 #endif

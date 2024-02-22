@@ -96,8 +96,13 @@ Rect SvgNode::bounds() const
   if(m_cachedBounds.isValid())
     return m_cachedBounds;
 #endif
-  Painter p;
-  return SvgPainter(&p).nodeBounds(this);
+  SvgDocument* root = rootDocument();
+  //ASSERT(root && root->boundsCalculator && "Cannot calculate bounds!");
+  if(!root || !root->boundsCalculator)
+    return SvgDocument::sharedBoundsCalc->nodeBounds(this);
+  return root->boundsCalculator->nodeBounds(this);
+  //Painter p;
+  //return SvgPainter(&p).nodeBounds(this);
 }
 
 void SvgNode::setDirty(DirtyFlag type) const
@@ -244,7 +249,7 @@ bool SvgNode::restyle()
   doc->restyleNode(this);
   // remove stale attrs that were not replaced; erase() doesn't accept reverse_iterator
   for(auto it = attrs.end(); it != attrs.begin() && (--it)->src() == SvgAttr::CSSSrc;) {
-    if(it->isStale()) {
+    if(it->isStale() || it->isInherit()) {
       // must erase before we call onAttrChange!
       std::string name = it->name();
       auto stdattr = it->stdAttr();
@@ -266,7 +271,7 @@ void SvgNode::onAttrChange(const char* name, SvgAttr::StdAttr stdattr)
   //  number of descendants w/ valid bounds (then we can stop descending if valid count = 0)
   if(type() == STOP) {
     if(m_parent)
-      m_parent->setDirty(PIXELS_DIRTY);
+      static_cast<SvgGradient*>(m_parent)->stopsChanged();  //m_parent->setDirty(PIXELS_DIRTY);
   }
   else {
     switch(stdattr) {
@@ -468,6 +473,40 @@ std::string SvgNode::nodePath(const SvgNode* node)
   }
   pathstr.erase(pathstr.size() - 3);
   return pathstr;
+}
+
+size_t SvgNode::estimateMemoryUsage(SvgNode* node)
+{
+  size_t nbytes = 0;
+  nbytes = sizeof(SvgNode) + node->attrs.size()*sizeof(SvgAttr);
+  for(auto it = node->attrs.begin(); it != node->attrs.end(); ++it)
+    nbytes += it->valueIs(SvgAttr::StringVal) ? it->stringLen() : 0;
+
+  if(node->asContainerNode()) {
+    for(SvgNode* child : node->asContainerNode()->children()) {
+      nbytes += estimateMemoryUsage(child);
+    }
+  }
+  switch(node->type()) {
+    case PATH:
+      nbytes += sizeof(Path2D);
+      nbytes += static_cast<SvgPath*>(node)->path()->points.size()*sizeof(Point);
+      nbytes += static_cast<SvgPath*>(node)->path()->commands.size()*sizeof(Path2D::PathCommand);
+      break;
+    case IMAGE:
+      nbytes += sizeof(SvgImage) + static_cast<SvgImage*>(node)->image()->dataLen();
+      break;
+    case TEXT:
+    case TSPAN:
+      for(SvgTspan* tspan : static_cast<SvgTspan*>(node)->tspans())
+        nbytes += estimateMemoryUsage(tspan);
+      nbytes += static_cast<SvgTspan*>(node)->m_text.size();
+      break;
+    //case DOC: PATTERN: GRADIENT: FONT: UNKNOWN: CUSTOM:
+    default:
+      break;
+  }
+  return nbytes;
 }
 
 // SvgNodeExtension
@@ -690,15 +729,17 @@ bool SvgGradient::restyle()
 #endif
 }
 
-// if rebuilding gradient everytime is an issue, we could make onAttrChange virtual, and use it in <stop> to
-//  set flag in parent gradient to rebuild
 Gradient& SvgGradient::gradient() const
 {
-  // do this every time because we don't know when linked gradient gets restyled
-  if(stops().empty() && m_link)
-    m_gradient.setStops(m_link->m_gradient.stops());
-  else {
-    m_gradient.clearStops();
+  if(m_link && stops().empty()) {
+    m_link->gradient();  // this may trigger update and increment m_link->m_generation
+    if(m_link_generation < m_link->m_generation) {
+      m_gradient.setStops(m_link->gradient().stops());
+      m_link_generation = m_link->m_generation;
+      ++m_generation;
+    }
+  }
+  else if(m_gradient.stops().empty() && !stops().empty()) {
     real offset = 0;
     for(SvgGradientStop* child : stops()) {
       SvgGradientStop* svgstop = static_cast<SvgGradientStop*>(child);
@@ -706,25 +747,28 @@ Gradient& SvgGradient::gradient() const
       Color color = svgstop->getColorAttr("stop-color", Color::BLACK);
       // support stop-color w/ alpha < 1
       color.setAlphaF(color.alphaF() * svgstop->getFloatAttr("stop-opacity", 1.0));
-      m_gradient.setColorAt(offset, color);
+      m_gradient.addStop(offset, color);
     }
+    ++m_generation;
   }
   return m_gradient;
 }
 
 // SvgDocument
 
+SvgPainter* SvgDocument::sharedBoundsCalc = NULL;
+
 SvgDocument::SvgDocument(real x, real y, SvgLength w, SvgLength h)
-    : m_x(x), m_y(y), m_width(w), m_height(h) {}
+    : m_x(x), m_y(y), m_width(w), m_height(h) {}  //boundsCalculator(sharedBoundsCalc)
 
 SvgDocument* SvgDocument::clone() const
 {
   ASSERT(m_fonts.empty() && "Cloning SvgDocument with fonts not yet supported");
-#ifndef NO_DYNAMIC_STYLE
-  ASSERT(!m_stylesheet && "Cloning SvgDocument with stylesheet not yet supported");
-#endif
+//#ifndef NO_DYNAMIC_STYLE
+//  ASSERT(!m_stylesheet && "Cloning SvgDocument with stylesheet not yet supported");
+//#endif
   SvgDocument* c = new SvgDocument(*this);
-  c->m_stylesheet = NULL;
+  //c->m_stylesheet = NULL;
   c->m_fonts.clear();
   if(!c->m_namedNodes.empty()) {
     c->m_namedNodes.clear();
@@ -817,7 +861,6 @@ Rect SvgDocument::viewportRect() const
 Transform2D SvgDocument::viewBoxTransform() const
 {
   Transform2D tf;
-  tf.translate(m_x, m_y);
   Rect source = m_viewBox;
   if(source.isValid()) {
     Rect target = viewportRect();
@@ -830,6 +873,7 @@ Transform2D SvgDocument::viewBoxTransform() const
       // tf.translate(-source.origin()).scale(sx, sy).translate(target.origin());  -- previous approach
     }
   }
+  tf.translate(m_x, m_y);
   return tf;
 }
 
@@ -878,16 +922,16 @@ SvgNode* SvgDocument::namedNode(const char* id) const
   SvgDocument* parent_doc;
   auto it = m_namedNodes.find(id[0] == '#' ? id + 1 : id);
   if(it == m_namedNodes.end() && m_parent && (parent_doc = m_parent->document())) {
-    if(IS_DEBUG) ASSERT(!parent_doc->namedNode(id) && "named node found on parent!");
+    //if(IS_DEBUG) ASSERT(!parent_doc->namedNode(id) && "named node found on parent!");
     return parent_doc->namedNode(id);
   }
   return it != m_namedNodes.end() ? it->second : NULL;
 }
 
 #ifndef NO_DYNAMIC_STYLE
-SvgDocument::~SvgDocument() { if(m_stylesheet) delete m_stylesheet; }
+//SvgDocument::~SvgDocument() { if(m_stylesheet) delete m_stylesheet; }
 // caller should call restyle() after setting stylesheet (after adding styles and calling sort_rules())
-void SvgDocument::setStylesheet(SvgCssStylesheet* ss) { if(m_stylesheet) delete m_stylesheet; m_stylesheet = ss; }
+void SvgDocument::setStylesheet(std::shared_ptr<SvgCssStylesheet> ss) { m_stylesheet = ss; }
 #endif
 
 // behavior here is not consistent with Chrome or Firefox - they seem to merge all <style>s into
@@ -998,9 +1042,10 @@ const SvgNode* SvgUse::target() const
   return d ? d->namedNode(m_linkStr.c_str()) : NULL;
 }
 
-void SvgUse::setTarget(const SvgNode* link)
+void SvgUse::setTarget(const SvgNode* link, std::shared_ptr<SvgDocument> doc)
 {
   if(m_link != link) {
+    m_doc = doc;
     m_linkStr.clear();  // href is invalid now
     m_link = link;
     invalidate(false);

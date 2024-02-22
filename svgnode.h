@@ -29,8 +29,9 @@ public:
 
   static StdAttr nameToStdAttr(const char* name);
 
-  enum { Stale = 0x10000, NoSerialize = 0x20000, Variable = 0x40000 };
+  enum ExFlags { NoExFlags = 0, Stale = 0x10000, NoSerialize = 0x20000, Variable = 0x40000, Inherit = 0x80000 };
   bool isStale() const { return flags & Stale; }
+  bool isInherit() const { return flags & Inherit; }
   void setStale(bool stale) { if(stale != isStale()) flags ^= Stale; }
 
   enum Src { XMLSrc = 0x1000, CSSSrc = 0x2000, InlineStyleSrc = 0x4000, AnySrc = 0xF000 };
@@ -136,6 +137,7 @@ public:
   static Transform2D identityTransform;
 
   static std::string nodePath(const SvgNode* node);  // for debugging - should probably be non-static
+  static size_t estimateMemoryUsage(SvgNode* node);
 
   enum DisplayMode { NoneMode, BlockMode, AbsoluteMode };
   enum DirtyFlag {NOT_DIRTY=0, CHILD_DIRTY, PIXELS_DIRTY, BOUNDS_DIRTY};
@@ -339,7 +341,7 @@ public:
 class SvgGradient : public SvgNode
 {
 public:
-  SvgGradient(const Gradient& grad) : m_gradient(grad) {}
+  SvgGradient(Gradient&& grad) : m_gradient(std::move(grad)) {}
   SvgGradient(const SvgGradient& other) : SvgNode(other), m_gradient(other.m_gradient), m_stops(this, other.m_stops) {}
   Type type() const override { return GRADIENT; }
   SvgGradient* clone() const override { return new SvgGradient(*this); }
@@ -350,10 +352,13 @@ public:
   //const char* stopLink() const { return m_link.c_str(); }
   std::vector<SvgGradientStop*>& stops() { return m_stops.get(); }
   const std::vector<SvgGradientStop*>& stops() const { return m_stops.get(); }
+  void stopsChanged() { setDirty(PIXELS_DIRTY); m_gradient.clearStops(); }
   Gradient& gradient() const;
 
 //private:
   mutable Gradient m_gradient;
+  mutable size_t m_link_generation = 0;
+  mutable size_t m_generation = 1;
   cloning_container< std::vector<SvgGradientStop*> > m_stops;
   SvgGradient* m_link = NULL;
   //std::string m_linkStr;
@@ -381,9 +386,10 @@ public:
   void setPreserveAspectRatio(bool v) { m_preserveAspectRatio = v; }
   bool preserveAspectRatio() const { return m_preserveAspectRatio; }
 #ifndef NO_DYNAMIC_STYLE
-  ~SvgDocument() override;
-  void setStylesheet(SvgCssStylesheet* ss);
-  SvgCssStylesheet* stylesheet() { return m_stylesheet; }
+  //~SvgDocument() override;
+  void setStylesheet(std::shared_ptr<SvgCssStylesheet> ss);
+  //void setStylesheet(SvgCssStylesheet* ss) { setStylesheet(std::shared_ptr<SvgCssStylesheet>(ss)); }
+  SvgCssStylesheet* stylesheet() { return m_stylesheet.get(); }
 #endif
 
   Rect viewBox() const { return m_viewBox; }
@@ -405,6 +411,8 @@ public:
   bool canRestyle();
   void replaceIds(SvgDocument* dest = NULL);
 
+  static SvgPainter* sharedBoundsCalc;
+
 //private:
   real m_x = 0, m_y = 0;
   SvgLength m_width, m_height;
@@ -412,12 +420,12 @@ public:
   Rect m_viewBox;
   bool m_preserveAspectRatio = true;
   Rect m_canvasRect;
+  SvgPainter* boundsCalculator = NULL;
 
   std::unordered_multimap<std::string, SvgFont*> m_fonts;  // key is family name, can have >1 style per family
   std::unordered_map<std::string, SvgNode*> m_namedNodes;
 #ifndef NO_DYNAMIC_STYLE
-  // if we use unique_ptr, have to create boilerplate copy constructor
-  SvgCssStylesheet* m_stylesheet = NULL;
+  std::shared_ptr<SvgCssStylesheet> m_stylesheet;
 #endif
 };
 
@@ -480,7 +488,7 @@ public:
   SvgUse(const Rect& bounds, const char* linkStr, const SvgNode* link, SvgDocument* doc = NULL);
   Type type() const override { return USE; }
   SvgUse* clone() const override { return new SvgUse(*this); }
-  void setTarget(const SvgNode* link);
+  void setTarget(const SvgNode* link, std::shared_ptr<SvgDocument> doc = {});
   const SvgNode* target() const;
   const char* href() const { return m_linkStr.c_str(); }
   void setHref(const char* s) { m_linkStr = s;  m_link = NULL;  invalidate(false); }
@@ -511,6 +519,7 @@ public:
   void addText(const char* text);
   bool isLineBreak() const { return m_text == "\n"; }
   void clearText();
+  void setText(const char* text) { clearText(); addText(text); }
   std::string text() const;
   std::string displayText() const;
   bool isTspan() const { return m_isTspan; }

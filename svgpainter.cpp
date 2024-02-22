@@ -26,8 +26,10 @@ void SvgPainter::drawNode(const SvgNode* node, const Rect& dirty)
 
 Rect SvgPainter::nodeBounds(const SvgNode* node)
 {
+  ASSERT((p->createFlags & Painter::PAINT_MASK) == Painter::PAINT_NULL && "Cannot use same SvgPainter for drawing and bounds calc!");
+  return bounds(node, true);
   //if(!node->isPaintable()) return;  -- just needed for <symbol> - reenable when problem appears again
-  p->save();
+  /*p->save();
   // sets default style on the painter if we are top level; might be better to let caller call initPainter()
   initPainter();
   p->setTransform(Transform2D());
@@ -38,16 +40,16 @@ Rect SvgPainter::nodeBounds(const SvgNode* node)
 
   extraStates.clear();
   p->restore();
-  return b;
+  return b;*/
 }
 
 std::vector<Rect> SvgPainter::glyphPositions(const SvgText* node)
 {
   p->save();
+  p->reset();
   initPainter();
-  //p.setTransform(Transform2D());  // reset transform
-  applyParentStyle(node);
-  applyStyle(node);
+  applyParentStyle(node, true);
+  applyStyle(node, true);
   real lineh = 0;
   Rect r;
   std::vector<Rect> positions;
@@ -198,15 +200,27 @@ void SvgPainter::drawChildren(const SvgContainerNode* node)
   }
 }
 
-Rect SvgPainter::bounds(const SvgNode* node)
+Rect SvgPainter::bounds(const SvgNode* node, bool parentstyle)
 {
 #ifndef DEBUG_CACHED_BOUNDS
   if(node->m_cachedBounds.isValid())
     return node->m_cachedBounds;
 #endif
   p->save();
+  if(parentstyle) {
+    p->reset();  //p->setTransform(Transform2D());
+    initPainter();
+    applyParentStyle(node, true);
+  }
   extraStates.push_back(extraStates.back());
-  applyStyle(node);
+  applyStyle(node, true);
+
+  //item->selectFirst(".title-text")->node->setAttr("__debug", 1);
+  //if(node->getIntAttr("__debug", 0) > 0) {
+  //  Transform2D tf = p->getTransform();
+  //  auto& paintstate = p->currState();
+  //  auto fontsize = p->fontSize();
+  //}
 
   Rect b;
   switch(node->type()) {
@@ -225,10 +239,14 @@ Rect SvgPainter::bounds(const SvgNode* node)
 
   extraStates.pop_back();
   p->restore();
+  if(parentstyle)
+    extraStates.pop_back();
 
 #ifdef DEBUG_CACHED_BOUNDS
-  if(node->m_cachedBounds.isValid() && b != node->m_cachedBounds)
+  if(node->m_cachedBounds.isValid() && b != node->m_cachedBounds) {
+    PLATFORM_LOG("Cached bounds are wrong for node: %s!\n", SvgNode::nodePath(node).c_str());
     ASSERT(0 && "Cached bounds are wrong!\n");
+  }
 #endif
   node->m_cachedBounds = b;
   return b;
@@ -245,7 +263,7 @@ Rect SvgPainter::childrenBounds(const SvgContainerNode* node)
   return b;
 }
 
-void SvgPainter::applyParentStyle(const SvgNode* node)
+void SvgPainter::applyParentStyle(const SvgNode* node, bool forBounds)
 {
   std::vector<SvgNode*> parentApplyStack;
   SvgNode* parent = node->parent();
@@ -257,10 +275,10 @@ void SvgPainter::applyParentStyle(const SvgNode* node)
   }
 
   for(auto it = parentApplyStack.rbegin(); it != parentApplyStack.rend(); ++it)
-    applyStyle(*it);
+    applyStyle(*it, forBounds);
 }
 
-void SvgPainter::applyStyle(const SvgNode* node)
+void SvgPainter::applyStyle(const SvgNode* node, bool forBounds)
 {
   ExtraState& state = extraState();
   // transform is not a presentation attribute
@@ -277,6 +295,7 @@ void SvgPainter::applyStyle(const SvgNode* node)
   bool fillCurrColor = false, strokeCurrColor = false;
   for(const SvgAttr& attr : node->attrs) {
     // originally, we just had a bunch of if/else w/ string compares, but that was showing up in profiling
+    // we could group together StdAttr values that don't affect bounds and skip attr based on forBounds
     switch(attr.stdAttr()) {
     case SvgAttr::COLOR:  state.currentColor = attr.colorVal();  break;
     case SvgAttr::COMP_OP:  p->setCompOp(Painter::CompOp(attr.intVal()));  break;
@@ -285,7 +304,9 @@ void SvgPainter::applyStyle(const SvgNode* node)
         p->setFillBrush(attr.colorVal());
       else if(attr.valueIs(SvgAttr::StringVal)) {
         state.fillServer = node->getRefTarget(attr.stringVal());
-        if(state.fillServer && state.fillServer->type() == SvgNode::GRADIENT)
+        if(forBounds)
+          p->setFillBrush(Color::RED);  // not really necessary since fill doesn't affect bounds
+        else if(state.fillServer && state.fillServer->type() == SvgNode::GRADIENT)
           p->setFillBrush(gradientBrush(static_cast<const SvgGradient*>(state.fillServer), node));
       }
       fillCurrColor = attr.valueIs(SvgAttr::IntVal) && attr.intVal() == SvgStyle::currentColor;
@@ -315,7 +336,9 @@ void SvgPainter::applyStyle(const SvgNode* node)
         p->setStrokeBrush(attr.colorVal());
       else if(attr.valueIs(SvgAttr::StringVal)) {
         state.strokeServer = node->getRefTarget(attr.stringVal());
-        if(state.strokeServer && state.strokeServer->type() == SvgNode::GRADIENT)
+        if(forBounds)
+          p->setStrokeBrush(Color::RED);
+        else if(state.strokeServer && state.strokeServer->type() == SvgNode::GRADIENT)
           p->setStrokeBrush(gradientBrush(static_cast<const SvgGradient*>(state.strokeServer), node));
       }
       strokeCurrColor = attr.valueIs(SvgAttr::IntVal) && attr.intVal() == SvgStyle::currentColor;
@@ -877,8 +900,9 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
 // return text of node broken into lines of length <= maxWidth
 std::string SvgPainter::breakText(const SvgText* node, real maxWidth)
 {
-  Painter painter;
-  std::vector<Rect> glyphpos = SvgPainter(&painter).glyphPositions(node);
+  SvgDocument* root = node->rootDocument();
+  SvgPainter* bounder = root && root->boundsCalculator ? root->boundsCalculator : SvgDocument::sharedBoundsCalc;
+  std::vector<Rect> glyphpos = bounder->glyphPositions(node);
   std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> cv;
   std::string s8 = node->text();
   std::u32string s = cv.from_bytes(s8);
@@ -912,10 +936,11 @@ std::string SvgPainter::breakText(const SvgText* node, real maxWidth)
 // replace text of textnode with truncated and ellipsized version w/ length < maxWidth
 void SvgPainter::elideText(SvgText* textnode, real maxWidth)
 {
+  SvgDocument* root = textnode->rootDocument();
+  SvgPainter* bounder = root && root->boundsCalculator ? root->boundsCalculator : SvgDocument::sharedBoundsCalc;
   std::string s = textnode->text();
   textnode->addText("...");
-  Painter painter;
-  std::vector<Rect> glyphpos = SvgPainter(&painter).glyphPositions(textnode);
+  std::vector<Rect> glyphpos = bounder->glyphPositions(textnode);
   textnode->clearText();
   if(glyphpos.size() < 4 || glyphpos[glyphpos.size() - 4].right < maxWidth)
     textnode->addText(s.c_str());

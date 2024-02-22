@@ -11,6 +11,9 @@
 #define FILEUTIL_IMPLEMENTATION
 #include "ulib/fileutil.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #define NANOVG_SW_IMPLEMENTATION
 #include "nanovg.h"
 #include "nanovg_sw.h"
@@ -31,7 +34,7 @@ int main(int argc, char* argv[])
 
   int res = 0;
   NVGcontext* nvgContext = nvgswCreate(NVG_AUTOW_DEFAULT | NVG_IMAGE_SRGB);
-  Painter::vg = nvgContext;
+  Painter::sharedVg = nvgContext;
   Painter::loadFontMem("sans", Roboto_Regular_ttf, Roboto_Regular_ttf_len);
 
   SvgDocument* doc = SvgParser().parseFile(svgfile);
