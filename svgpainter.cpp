@@ -898,6 +898,7 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
 #include <codecvt>        // std::codecvt_utf8
 
 // return text of node broken into lines of length <= maxWidth
+// note that we don't use Painter::textBreakLines to support SVG fonts
 std::string SvgPainter::breakText(const SvgText* node, real maxWidth)
 {
   SvgDocument* root = node->rootDocument();

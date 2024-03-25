@@ -624,14 +624,14 @@ void SvgContainerNode::addChild(SvgNode* child, SvgNode* next)
   child->setParent(this);
   child->m_dirty = NOT_DIRTY;  // ensure that parents will be marked CHILD_DIRTY
   child->setDirty(BOUNDS_DIRTY);
+  // invalidate our bounds (cached bounds of empty container are always invalid - parent could still be valid)
+  if(children().empty() || m_cachedBounds.isValid()) //&& !m_cachedBounds.contains(child->bounds()))
+    invalidateBounds(false);
 
   if(next)
     children().insert(std::find(children().begin(), children().end(), next), child);
   else
     children().push_back(child);
-  // invalidate bounds if necessary
-  if(m_cachedBounds.isValid() && !m_cachedBounds.contains(child->bounds()))
-    invalidateBounds(false);
 
   SvgDocument* doc = document();
   if(doc) {
@@ -650,10 +650,10 @@ SvgNode* SvgContainerNode::removeChild(SvgNode* child)
     m_removedBounds.rectUnion(child->m_renderedBounds);  //child->bounds());
   setDirty(CHILD_DIRTY);  // or should we add a level above CHILD_DIRTY for removed node?
 
-  // TODO: We need to use fuzzyEq here!
+  // use fuzzyEq here?
   if(m_cachedBounds.isValid()) {
-    Rect bbox = child->bounds();
-    if(m_cachedBounds.left >= bbox.left || m_cachedBounds.top >= bbox.top
+    Rect bbox = child->m_cachedBounds;
+    if(!bbox.isValid() || m_cachedBounds.left >= bbox.left || m_cachedBounds.top >= bbox.top
         || m_cachedBounds.right <= bbox.right || m_cachedBounds.bottom <= bbox.bottom)
       invalidateBounds(false);
   }
