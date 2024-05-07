@@ -112,7 +112,9 @@ void SvgNode::setDirty(DirtyFlag type) const
     return;
   if(m_dirty == NOT_DIRTY && m_parent)
     m_parent->setDirty(CHILD_DIRTY);
+#ifdef DEBUG_CACHED_BOUNDS
   ASSERT(!m_parent || !m_parent->isVisible() || m_parent->m_dirty != NOT_DIRTY);
+#endif
   if(type > m_dirty)
     m_dirty = type;
 }

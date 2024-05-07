@@ -940,6 +940,10 @@ void SvgPainter::elideText(SvgText* textnode, real maxWidth)
   SvgDocument* root = textnode->rootDocument();
   SvgPainter* bounder = root && root->boundsCalculator ? root->boundsCalculator : SvgDocument::sharedBoundsCalc;
   std::string s = textnode->text();
+  if(strchr(s.c_str(), '\n')) {
+    std::replace(s.begin(), s.end(), '\n', ' ');
+    textnode->setText(s.c_str());
+  }
   textnode->addText("...");
   std::vector<Rect> glyphpos = bounder->glyphPositions(textnode);
   textnode->clearText();
