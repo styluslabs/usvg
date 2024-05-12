@@ -199,6 +199,10 @@ public:
   SvgNode* getRefTarget(const char* id) const;
   void cssToInlineStyle();
 
+  // moved here to support selecting, e.g., <tspan> inside <text>
+  std::vector<SvgNode*> select(const char* selector, size_t nhits = SIZE_MAX) const;
+  SvgNode* selectFirst(const char* selector) const;
+
   SvgNodeExtension* ext(bool create = true) const;
   void setExt(SvgNodeExtension*);
   void createExt();
@@ -283,8 +287,6 @@ public:
   const std::list<SvgNode*>& children() const { return m_children.get(); }
   SvgNode* firstChild() const { return children().empty() ? NULL : children().front(); }
   SvgNode* nodeAt(const Point& p, bool visual_only = true) const;
-  std::vector<SvgNode*> select(const char* selector, size_t nhits = SIZE_MAX) const;
-  SvgNode* selectFirst(const char* selector) const;
 
 //protected:
   cloning_container< std::list<SvgNode*> > m_children;

@@ -511,20 +511,6 @@ size_t SvgNode::estimateMemoryUsage(SvgNode* node)
   return nbytes;
 }
 
-// SvgNodeExtension
-
-SvgNodeExtension::SvgNodeExtension(SvgNode* n) : node(n)
-{
-  n->setExt(this);
-}
-
-Rect SvgNodeExtension::dirtyRect() const
-{
-  return node->m_dirty != SvgNode::NOT_DIRTY ? node->bounds().rectUnion(node->m_renderedBounds) : Rect();
-}
-
-// SvgContainerNode
-
 static bool isSingleIdent(const char* s)
 {
   if(!s || !s[0] || isDigit(*s))
@@ -537,7 +523,7 @@ static bool isSingleIdent(const char* s)
 }
 
 // TODO: this should use BFS not DFS!
-SvgNode* SvgContainerNode::selectFirst(const char* selector) const
+SvgNode* SvgNode::selectFirst(const char* selector) const
 {
   std::vector<SvgNode*> hits = select(selector, 1);
   return hits.empty() ? NULL : hits.front();
@@ -545,12 +531,16 @@ SvgNode* SvgContainerNode::selectFirst(const char* selector) const
 
 // TODO: support complex selectors using cssparser; to support parsed attributes, serialize node
 //  (or just style?) if selector uses attributes other than id and class
-std::vector<SvgNode*> SvgContainerNode::select(const char* selector, size_t nhits) const
+std::vector<SvgNode*> SvgNode::select(const char* selector, size_t nhits) const
 {
   if(!selector || !selector[0])
     return {};
-  if(strcmp(selector, "*") == 0)  // or do this if selector is empty?
-    return std::vector<SvgNode*>(children().cbegin(), children().cend());
+  if(strcmp(selector, "*") == 0) {  // or do this if selector is empty?
+    const SvgContainerNode* cnode = asContainerNode();
+    if(cnode)
+      return std::vector<SvgNode*>(cnode->children().cbegin(), cnode->children().cend());
+    return {const_cast<SvgNode*>(this)};
+  }
   if(selector[0] == '#' && isSingleIdent(selector+1)) {
     SvgNode* node = getRefTarget(selector);
     for(SvgNode* parent = node; parent; parent = parent->parent()) {
@@ -570,8 +560,12 @@ std::vector<SvgNode*> SvgContainerNode::select(const char* selector, size_t nhit
         for(SvgNode* child : node->asContainerNode()->children())
           selfn(child);
       }
+      else if(node->type() == TEXT || node->type() == TSPAN) {
+        for(SvgTspan* child : static_cast<SvgTspan*>(node)->tspans())
+          selfn(child);
+      }
     };
-    selfn(const_cast<SvgContainerNode*>(this));
+    selfn(const_cast<SvgNode*>(this));
     return hits;
   }
   if(isSingleIdent(selector)) {
@@ -590,7 +584,7 @@ std::vector<SvgNode*> SvgContainerNode::select(const char* selector, size_t nhit
               selfn(child);
           }
         };
-        selfn(const_cast<SvgContainerNode*>(this));
+        selfn(const_cast<SvgNode*>(this));
         return hits;
       }
     }
@@ -598,6 +592,20 @@ std::vector<SvgNode*> SvgContainerNode::select(const char* selector, size_t nhit
   PLATFORM_LOG("Invalid node selector - only simple selectors are supported in select(): %s", selector);
   return {};
 }
+
+// SvgNodeExtension
+
+SvgNodeExtension::SvgNodeExtension(SvgNode* n) : node(n)
+{
+  n->setExt(this);
+}
+
+Rect SvgNodeExtension::dirtyRect() const
+{
+  return node->m_dirty != SvgNode::NOT_DIRTY ? node->bounds().rectUnion(node->m_renderedBounds) : Rect();
+}
+
+// SvgContainerNode
 
 static void addIds(SvgDocument* doc, SvgNode* node)
 {
