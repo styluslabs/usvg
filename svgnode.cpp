@@ -110,8 +110,14 @@ void SvgNode::setDirty(DirtyFlag type) const
   // isVisible() is false for non-paintable nodes but we want dirty state to propagate for them
   if(!isVisible() && isPaintable())
     return;
-  if(m_dirty == NOT_DIRTY && m_parent)
-    m_parent->setDirty(CHILD_DIRTY);
+  if(m_parent) {
+    if(!m_parent->asContainerNode()) {  // just make <text> dirty for dirty <tspan>
+      m_parent->setDirty(type);
+      return;
+    }
+    if(m_dirty == NOT_DIRTY)
+      m_parent->setDirty(CHILD_DIRTY);
+  }
 #ifdef DEBUG_CACHED_BOUNDS
   ASSERT(!m_parent || !m_parent->isVisible() || m_parent->m_dirty != NOT_DIRTY);
 #endif

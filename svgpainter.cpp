@@ -118,10 +118,6 @@ void SvgPainter::clearDirty(const SvgNode* node)
       for(SvgNode* child : container->children())
         clearDirty(child);
     }
-    else if(node->type() == SvgNode::TEXT || node->type() == SvgNode::TSPAN) {
-      for(auto* child : static_cast<const SvgTspan*>(node)->tspans())
-        clearDirty(child);
-    }
   }
 }
 
