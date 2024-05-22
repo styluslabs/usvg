@@ -475,6 +475,8 @@ public:
   Rect getRect() const { return m_rect; }
   std::pair<real, real> getRadii() const { return {m_rx, m_ry}; }
   void setRect(const Rect& rect, real rx = 0, real ry = 0);
+  // non-standard: support separate radii for each corner; overrides rx,ry
+  void setCornerRadii(real t_l, real t_r, real b_r, real b_l);
 
 //private:
   void updatePath();
@@ -482,6 +484,7 @@ public:
   Rect m_rect;
   real m_rx;
   real m_ry;
+  real m_radii[4] = {0,0,0,0};
 };
 
 class SvgUse : public SvgNode

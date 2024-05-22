@@ -11,11 +11,11 @@ void SvgPainter::drawNode(const SvgNode* node, const Rect& dirty)
   initPainter();
   initialTransform = p->getTransform();
   initialTransformInv = initialTransform.inverse();  // only for SvgGui - remove if we find a better soln
+  if(node->parent())  // apply parent style before setting dirty rect so dirty rect valid == drawing
+    applyParentStyle(node);
   dirtyRect = initialTransformInv.mapRect(p->deviceRect);
   if(dirty.isValid())
     dirtyRect.rectIntersect(dirty);
-  if(node->parent())  // && !standalone
-    applyParentStyle(node);
 
   // TODO: this unnecessarily saves and restores state
   draw(node);

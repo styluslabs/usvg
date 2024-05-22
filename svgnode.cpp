@@ -1016,16 +1016,43 @@ void SvgRect::setRect(const Rect& rect, real rx, real ry)
   invalidate(false);
 }
 
+void SvgRect::setCornerRadii(real t_l, real t_r, real b_r, real b_l)
+{
+  if(m_radii[0] == t_l && m_radii[1] == t_r && m_radii[2] == b_r && m_radii[3] == b_l) return;
+  m_radii[0] = t_l; m_radii[1] = t_r; m_radii[2] = b_r; m_radii[3] = b_l;
+  updatePath();
+  invalidate(false);
+}
+
 void SvgRect::updatePath()
 {
   m_path.clear();
-  if(m_rect.width() <= 0 || m_rect.height() <= 0)
+  real x = m_rect.left;
+  real y = m_rect.top;
+  real w = m_rect.width();
+  real h = m_rect.height();
+  if(w <= 0 || h <= 0)
     return;  // SVG spec says <rect> width or height == 0 disables rendering
-  if(m_rx > 0 || m_ry > 0) {
-    real x = m_rect.left;
-    real y = m_rect.top;
-    real w = m_rect.width();
-    real h = m_rect.height();
+
+  if(m_radii[0] > 0 || m_radii[1] > 0 || m_radii[2] > 0 || m_radii[3] > 0) {
+    real rmax = std::min(w, h)/2;
+    real r0 = std::min(m_radii[0], rmax);
+    real r1 = std::min(m_radii[1], rmax);
+    real r2 = std::min(m_radii[2], rmax);
+    real r3 = std::min(m_radii[3], rmax);
+
+    // top-left | top-right | bottom-right | bottom-left
+    m_path.moveTo(x, y+r0);
+    if(r0 > 0) m_path.addArc(x+r0, y+r0, r0, r0, M_PI, M_PI/2);
+    m_path.lineTo(x+w-r1, y);
+    if(r1 > 0) m_path.addArc(x+w-r1, y+r1, r1, r1, -M_PI/2, M_PI/2);
+    m_path.lineTo(x+w, y+h-r2);
+    if(r2 > 0) m_path.addArc(x+w-r2, y+h-r2, r2, r2, 0, M_PI/2);
+    m_path.lineTo(x+r3, y+h);
+    if(r3 > 0) m_path.addArc(x+r3, y+h-r3, r3, r3, M_PI/2, M_PI/2);
+    m_path.closeSubpath();
+  }
+  else if(m_rx > 0 || m_ry > 0) {
     real rxx2 = std::min(m_rx, w/2);
     real ryy2 = std::min(m_ry, h/2);
 
