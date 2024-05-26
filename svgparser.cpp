@@ -593,6 +593,10 @@ SvgNode* SvgParser::createImageNode()
     std::vector<unsigned char> buff;
     if(readFile(&buff, toAbsPath(targetref).c_str()))
       image = Image::decodeBuffer(buff.data(), buff.size());
+#ifndef NDEBUG
+    else
+      PLATFORM_LOG("Error opening SVG <image> href: %s\n", toAbsPath(targetref).c_str());
+#endif
   }
   return new SvgImage(std::move(image), Rect::ltwh(x, y, w, h), target);
 }
