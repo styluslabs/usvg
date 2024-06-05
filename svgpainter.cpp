@@ -408,6 +408,8 @@ void SvgPainter::drawPattern(const SvgPattern* pattern, const Path2D* path)
   real destw = dest.width();
   real desth = dest.height();
   Rect cell = pattern->m_cell;
+  Rect oldDirty = dirtyRect;
+  dirtyRect = Rect();
 
   p->save();
   Transform2D tfin = p->getTransform();
@@ -430,7 +432,7 @@ void SvgPainter::drawPattern(const SvgPattern* pattern, const Path2D* path)
   if(pattern->hasTransform())
     p->transform(pattern->getTransform());
 
-  Rect localDirty = (p->getTransform().inverse() * initialTransform).mapRect(dirtyRect);
+  Rect localDirty = (p->getTransform().inverse() * initialTransform).mapRect(oldDirty);
   real w = cell.width();
   real h = cell.height();
   real x0 = fmod(cell.left, w);
@@ -442,7 +444,6 @@ void SvgPainter::drawPattern(const SvgPattern* pattern, const Path2D* path)
   real xmax = std::min(dest.right, localDirty.right);
   real ymax = std::min(dest.bottom, localDirty.bottom);
 
-  Rect oldDirty = dirtyRect;
   // would be better to disable dirtyRect checking when drawing pattern
   dirtyRect = pattern->m_cell.toSize();
   // clip ruling to dest
