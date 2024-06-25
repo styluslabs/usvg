@@ -741,8 +741,7 @@ Point SvgPainter::drawTextText(const SvgTspan* node, Point pos, real* lineh, Rec
     Rect tempBounds;
     uint32_t codepoint, utf8_state = UTF8_ACCEPT;
     const char* str = text.c_str();
-    // ii counts codepoints
-    for(size_t ii = 0; *str; ++ii) {
+    while(*str) {
       if(!textX.empty()) { pos.x = textX.back();  textX.pop_back(); }
       if(!textY.empty()) { pos.y = textY.back();  textY.pop_back(); }
 
