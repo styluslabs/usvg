@@ -203,10 +203,10 @@ void SvgNode::setDisplayMode(DisplayMode mode)
     removeAttr("display", SvgAttr::XMLSrc);  // we don't want a bunch of unnecessary display=block attrs
 }
 
+// displayMode is checked in SvgPainter and searching for attribute by key was showing up in profiling
 SvgNode::DisplayMode SvgNode::displayMode() const
 {
-  const SvgAttr* attr = getAttr("display", SvgAttr::XMLSrc);
-  return attr ? DisplayMode(attr->intVal()) : BlockMode;
+  return m_displayMode;  //getAttr("display", SvgAttr::XMLSrc); return attr ? DisplayMode(attr->intVal()) : BlockMode;
 }
 
 bool SvgNode::isVisible() const
@@ -300,13 +300,13 @@ void SvgNode::onAttrChange(const char* name, SvgAttr::StdAttr stdattr)
     case SvgAttr::DISPLAY:
     case SvgAttr::VISIBILITY:
     {
-      int dispmode = getIntAttr("display", BlockMode);
+      m_displayMode = DisplayMode(getIntAttr("display", BlockMode));
       // SvgPainter::calcDirtyRect() ignores AbsoluteMode nodes, so if we are switching a node from BlockMode,
       //  we add bounds to parent's removedBounds to get correct dirty rect
-      if(stdattr == SvgAttr::DISPLAY && dispmode == AbsoluteMode && m_visible && m_parent->asContainerNode())
+      if(stdattr == SvgAttr::DISPLAY && m_displayMode == AbsoluteMode && m_visible && m_parent->asContainerNode())
         m_parent->asContainerNode()->m_removedBounds.rectUnion(m_renderedBounds);  //bounds());
 
-      bool vis = dispmode != NoneMode && getIntAttr("visibility", 1);
+      bool vis = m_displayMode != NoneMode && getIntAttr("visibility", 1);
       if(vis != m_visible) {
         // exactly one of these invalidate() calls will be a no-op since visible will be false
         invalidate(false);

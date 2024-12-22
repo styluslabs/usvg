@@ -208,17 +208,10 @@ public:
   void createExt();
   bool hasExt() const { return bool(m_ext); }
 
-protected:
-  SvgNode(const SvgNode&);
-
-  bool setAttrHelper(const SvgAttr& attr);
-  void onAttrChange(const char* name, SvgAttr::StdAttr stdattr);
-
-public:
+//private:
   std::vector<SvgAttr> attrs;
   std::unique_ptr<Transform2D> transform;  // prior to SVG 2, transform is not a presentation attribute
 
-//private:
   mutable Rect m_cachedBounds;
   mutable Rect m_renderedBounds;
   mutable DirtyFlag m_dirty = NOT_DIRTY;
@@ -226,8 +219,15 @@ public:
   SvgNode* m_parent = NULL;
   std::unique_ptr<SvgNodeExtension> m_ext;
   bool m_visible = true;
+  DisplayMode m_displayMode = BlockMode;
   std::string m_id;
   std::string m_class;
+
+protected:
+  SvgNode(const SvgNode&);
+
+  bool setAttrHelper(const SvgAttr& attr);
+  void onAttrChange(const char* name, SvgAttr::StdAttr stdattr);
 };
 
 class SvgXmlFragment : public SvgNode
