@@ -51,8 +51,8 @@ Transform2D SvgNode::identityTransform;
 
 // we override default copy constructor to clear parent, and update ext node pointer; we no longer clear id
 SvgNode::SvgNode(const SvgNode& n) : attrs(n.attrs), transform(n.transform ? new Transform2D(*n.transform) : NULL),
-    m_cachedBounds(), m_renderedBounds(), m_dirty(NOT_DIRTY), m_parent(NULL),
-    m_ext(n.m_ext ? n.m_ext->clone() : NULL), m_visible(n.m_visible), m_id(n.m_id), m_class(n.m_class)
+    m_cachedBounds(), m_renderedBounds(), m_dirty(NOT_DIRTY), m_parent(NULL), m_ext(n.m_ext ? n.m_ext->clone() : NULL),
+    m_visible(n.m_visible), m_displayMode(n.m_displayMode), m_id(n.m_id), m_class(n.m_class)
 {
   if(m_ext)
     m_ext->node = this;
