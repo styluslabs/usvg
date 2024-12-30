@@ -1,6 +1,7 @@
 #include "svgnode.h"
 #include "svgstyleparser.h"
 #include "svgpainter.h"  // only needed for bounds()
+#include "svgxml.h"
 
 
 const char* SvgLength::unitNames[] = {"px", "pt", "em", "ex", "%"};
@@ -25,6 +26,8 @@ SvgAttr::StdAttr SvgAttr::nameToStdAttr(const char* name)
   auto it = stdAttrMap.find(name);
   return it != stdAttrMap.end() ? it->second : UNKNOWN;
 }
+
+bool SvgAttr::nameIs(const char* s) const { return strcmp(name(), s) == 0; }
 
 bool operator==(const SvgAttr& a, const SvgAttr& b)
 {
@@ -57,6 +60,8 @@ SvgNode::SvgNode(const SvgNode& n) : attrs(n.attrs), transform(n.transform ? new
   if(m_ext)
     m_ext->node = this;
 }
+
+SvgNode::~SvgNode() {}
 
 void SvgNode::deleteFromExt()
 {
@@ -611,6 +616,12 @@ Rect SvgNodeExtension::dirtyRect() const
   return node->m_dirty != SvgNode::NOT_DIRTY ? node->bounds().rectUnion(node->m_renderedBounds) : Rect();
 }
 
+// SvgXmlFragment
+
+SvgXmlFragment::SvgXmlFragment(XmlFragment* frag) : fragment(frag) {}
+
+SvgXmlFragment::SvgXmlFragment(const SvgXmlFragment& other) : SvgNode(other), fragment(other.fragment->clone()) {}
+
 // SvgContainerNode
 
 static void addIds(SvgDocument* doc, SvgNode* node)
@@ -898,7 +909,7 @@ void SvgDocument::addSvgFont(SvgFont* font)
   m_fonts.emplace(font->familyName(), font);
 }
 
-SvgFont* SvgDocument::svgFont(const char* family, int weight, Painter::FontStyle style) const
+SvgFont* SvgDocument::svgFont(const char* family, int weight, int style) const
 {
   auto hits = m_fonts.equal_range(family);
   // if there is only one match for family (most likely case), return that immediately

@@ -1,6 +1,8 @@
 #pragma once
 #include "svgnode.h"
 
+class XmlStreamWriter;
+
 class SvgWriter
 {
 public:

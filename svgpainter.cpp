@@ -1,5 +1,6 @@
 #include "svgpainter.h"
 #include "svgstyleparser.h"
+#include "ulib/platformutil.h"
 
 
 // perhaps this should be a static method passed a Painter* ?

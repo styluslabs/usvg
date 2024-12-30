@@ -3,6 +3,7 @@
 #include <functional>
 #include "svgnode.h"
 #include "svgstyleparser.h"
+#include "svgxml.h"
 
 class SvgParser
 {

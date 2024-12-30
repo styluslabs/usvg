@@ -6,8 +6,7 @@
 #include <unordered_map>
 #include "ulib/path2d.h"
 #include "ulib/image.h"
-#include "ulib/painter.h"  // for Color and Gradient
-#include "svgxml.h"
+#include "ulib/color.h"  // for Color and Gradient
 
 #ifndef NDEBUG
 #define DEBUG_CACHED_BOUNDS 1
@@ -42,7 +41,7 @@ public:
   unsigned int getFlags() const { return flags; }
 
   const char* name() const { return str.c_str(); }
-  bool nameIs(const char* s) const { return strcmp(name(), s) == 0; }
+  bool nameIs(const char* s) const;
   bool nameIs(StdAttr std) const { return stdAttr() == std; }
 
   enum ValueType { IntVal = 0x100, ColorVal = 0x200, FloatVal = 0x300, StringVal = 0x400 };
@@ -143,7 +142,7 @@ public:
   enum DirtyFlag {NOT_DIRTY=0, CHILD_DIRTY, PIXELS_DIRTY, BOUNDS_DIRTY};
 
   SvgNode() {}
-  virtual ~SvgNode() {}
+  virtual ~SvgNode();
   void deleteFromExt();
 
   SvgNode* parent() const { return m_parent; }
@@ -230,12 +229,14 @@ protected:
   void onAttrChange(const char* name, SvgAttr::StdAttr stdattr);
 };
 
+class XmlFragment;
+
 class SvgXmlFragment : public SvgNode
 {
 public:
   std::unique_ptr<XmlFragment> fragment;
-  SvgXmlFragment(XmlFragment* frag) : fragment(frag) {}
-  SvgXmlFragment(const SvgXmlFragment& other) : SvgNode(other), fragment(other.fragment->clone()) {}
+  SvgXmlFragment(XmlFragment* frag);
+  SvgXmlFragment(const SvgXmlFragment& other);
   Type type() const override { return UNKNOWN; }
   SvgXmlFragment* clone() const override { return new SvgXmlFragment(*this); }
 };
@@ -405,7 +406,7 @@ public:
   Transform2D viewBoxTransform() const;
 
   void addSvgFont(SvgFont*);
-  SvgFont* svgFont(const char* family, int weight = 400, Painter::FontStyle = Painter::StyleNormal) const;
+  SvgFont* svgFont(const char* family, int weight = 400, int style = 0) const;
   void addNamedNode(SvgNode* node);
   void removeNamedNode(SvgNode* node);
   SvgNode* namedNode(const char* id) const;

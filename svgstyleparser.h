@@ -1,6 +1,8 @@
 #pragma once
 
 #include "svgnode.h"
+#include "ulib/stringutil.h"
+#include "ulib/painter.h"
 
 #ifndef NO_CSS
 #include "cssparser.h"

@@ -1,5 +1,6 @@
 #include "svgwriter.h"
 #include "svgstyleparser.h"
+#include "svgxml.h"
 
 
 // include CSS style when serializing

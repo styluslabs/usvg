@@ -1,5 +1,6 @@
 #pragma once
 #include "svgnode.h"
+#include "ulib/painter.h"
 
 class SvgPainter
 {
