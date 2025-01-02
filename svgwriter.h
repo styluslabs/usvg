@@ -2,6 +2,7 @@
 #include "svgnode.h"
 
 class XmlStreamWriter;
+struct IOStream;
 
 class SvgWriter
 {
@@ -19,6 +20,8 @@ public:
   static bool DEFAULT_PATH_DATA_REL;
   static float DEFAULT_SAVE_IMAGE_SCALED;
   static int SVG_FLOAT_PRECISION;
+
+  static void save(SvgNode* node, IOStream& strm, const char* indent = "  ");
 
   static char* serializeColor(char* buff, const Color& color);
   // TODO: make these non-static and use xml.defaultFloatPrecision instead

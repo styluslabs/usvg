@@ -139,6 +139,13 @@ void SvgWriter::writeAttribute(const SvgAttr& attr)
   }
 }
 
+void SvgWriter::save(SvgNode* node, IOStream& strm, const char* indent)
+{
+  XmlStreamWriter xmlwriter;
+  SvgWriter(xmlwriter).serialize(node);
+  xmlwriter.save(strm, indent);
+}
+
 void SvgWriter::serialize(SvgNode* node)
 {
   switch(node->type()) {
