@@ -34,7 +34,7 @@ public:
 
   SvgPainter(Painter* _p) : p(_p) {}
   void drawNode(const SvgNode* node, const Rect& dirty = Rect());
-  std::vector<Rect> glyphPositions(const SvgText* node);
+  std::vector<GlyphPosition> glyphPositions(const SvgText* node);
   Rect nodeBounds(const SvgNode* node);
 
   static std::string breakText(const SvgText* node, real maxWidth);
@@ -61,8 +61,9 @@ private:
   void drawPattern(const SvgPattern* pattern, const Path2D* path);
 
   Point drawTextTspans(const SvgTspan* node, Point pos,
-      real* lineh, Rect* boundsOut = NULL, std::vector<Rect>* glyphPos = NULL);
-  Point drawTextText(const SvgTspan* node, Point pos, real* lineh, Rect* boundsOut, std::vector<Rect>* glyphPos);
+      real* lineh, Rect* boundsOut = NULL, std::vector<GlyphPosition>* glyphPos = NULL);
+  Point drawTextText(const SvgTspan* node, Point pos,
+      real* lineh, Rect* boundsOut, std::vector<GlyphPosition>* glyphPos);
 
   Rect bounds(const SvgNode* node, bool parentstyle = false);
   Rect _bounds(const SvgDocument* node);

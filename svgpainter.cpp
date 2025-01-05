@@ -44,7 +44,7 @@ Rect SvgPainter::nodeBounds(const SvgNode* node)
   return b;*/
 }
 
-std::vector<Rect> SvgPainter::glyphPositions(const SvgText* node)
+std::vector<GlyphPosition> SvgPainter::glyphPositions(const SvgText* node)
 {
   p->save();
   p->reset();
@@ -53,7 +53,7 @@ std::vector<Rect> SvgPainter::glyphPositions(const SvgText* node)
   applyStyle(node, true);
   real lineh = 0;
   Rect r;
-  std::vector<Rect> positions;
+  std::vector<GlyphPosition> positions;
   drawTextTspans(node, Point(0,0), &lineh, &r, &positions);
   extraStates.clear();
   p->restore();
@@ -686,7 +686,8 @@ Rect SvgPainter::_bounds(const SvgText* node)
 // Note: in, e.g. <text y="0">A<tspan y="10">BC</tspan>D</text>, 'D' is placed at y=10, not y=0 - absolute
 //  coordinates set a new current text position, which is not affected by end of <tspan>!
 
-Point SvgPainter::drawTextText(const SvgTspan* node, Point pos, real* lineh, Rect* boundsOut, std::vector<Rect>* glyphPos)
+Point SvgPainter::drawTextText(const SvgTspan* node, Point pos,
+    real* lineh, Rect* boundsOut, std::vector<GlyphPosition>* glyphPos)
 {
   if(node->m_text.empty())
     return pos;
@@ -727,7 +728,7 @@ Point SvgPainter::drawTextText(const SvgTspan* node, Point pos, real* lineh, Rec
       if(drawing)
         p->drawPath(glyphs[ii]->m_path);
       if(glyphPos)
-        glyphPos->push_back(Rect::ltrb(pos.x, pos.y, pos.x+dx, pos.y));
+        glyphPos->push_back({ii, pos.x, pos.x, pos.x+dx});  //Rect::ltrb(pos.x, pos.y, pos.x+dx, pos.y));
       if(boundsOut && !glyphs[ii]->m_path.empty())
         boundsOut->rectUnion(p->getTransform().mapRect(glyphs[ii]->m_path.controlPointRect()));
       p->setTransform(tf0);
@@ -805,7 +806,8 @@ static bool resetsAnchor(const SvgTspan* node)
   return node->isLineBreak() || !node->m_x.empty() || !node->m_y.empty();
 }
 
-Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, Rect* boundsOut, std::vector<Rect>* glyphPos)
+Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos,
+    real* lineh, Rect* boundsOut, std::vector<GlyphPosition>* glyphPos)
 {
   // <textPath> can be contained in <text> but not <tspan> (so can't be nested, since <text> can't be nested)
   if(node->type() == SvgNode::TEXTPATH) {
@@ -838,7 +840,7 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos, real* lineh, R
       if(m_tspans[ii]->isLineBreak()) {
         // ensure that glyphPos is same length as text
         if(glyphPos)
-          glyphPos->push_back(Rect::centerwh(pos, 0, 0));
+          glyphPos->push_back({0, pos.x, pos.x, pos.x});  //Rect::centerwh(pos, 0, 0));
         pos.x = x0;
         pos.y += *lineh > 0 ? *lineh : p->textLineHeight();
         *lineh = 0;
@@ -904,7 +906,7 @@ std::string SvgPainter::breakText(const SvgText* node, real maxWidth)
 {
   SvgDocument* root = node->rootDocument();
   SvgPainter* bounder = root && root->boundsCalculator ? root->boundsCalculator : SvgDocument::sharedBoundsCalc;
-  std::vector<Rect> glyphpos = bounder->glyphPositions(node);
+  auto glyphpos = bounder->glyphPositions(node);
   std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> cv;
   std::string s8 = node->text();
   std::u32string s = cv.from_bytes(s8);
@@ -945,7 +947,7 @@ void SvgPainter::elideText(SvgText* textnode, real maxWidth)
     textnode->setText(s.c_str());
   }
   textnode->addText("...");
-  std::vector<Rect> glyphpos = bounder->glyphPositions(textnode);
+  auto glyphpos = bounder->glyphPositions(textnode);
   textnode->clearText();
   if(glyphpos.size() < 4 || glyphpos[glyphpos.size() - 4].right < maxWidth)
     textnode->addText(s.c_str());
