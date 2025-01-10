@@ -2,6 +2,7 @@
 
 #include <functional>
 #include "svgnode.h"
+#include "ulib/painter.h"
 
 
 class PdfWriter

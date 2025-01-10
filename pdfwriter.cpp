@@ -78,6 +78,7 @@
 #include "pdfwriter.h"
 #include "miniz/miniz.h"
 #include "svgstyleparser.h"
+#include "ulib/platformutil.h"
 
 // fonts
 const char* PdfWriter::FONTS[] =
