@@ -998,6 +998,8 @@ Rect SvgImage::viewport() const
   real imgw = m_image.getWidth(), imgh = m_image.getHeight();
   if(w > 0 && h > 0)
     return m_bounds;
+  if(imgw <= 0 || imgh <= 0)
+    return m_bounds;  // not much else we can do if image is missing
   if(w <= 0 && h <= 0)
     return Rect::ltwh(m_bounds.left, m_bounds.top, imgw, imgh);
   if(w > 0)  // h <= 0
