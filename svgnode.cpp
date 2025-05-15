@@ -20,7 +20,8 @@ SvgAttr::StdAttr SvgAttr::nameToStdAttr(const char* name)
     {"stroke-dashoffset", STROKE_DASHOFFSET}, {"stroke-linecap", STROKE_LINECAP},
     {"stroke-linejoin", STROKE_LINEJOIN}, {"stroke-miterlimit", STROKE_MITERLIMIT},
     {"stroke-opacity", STROKE_OPACITY}, {"stroke-width", STROKE_WIDTH}, {"text-anchor", TEXT_ANCHOR},
-    {"vector-effect", VECTOR_EFFECT}, {"visibility", VISIBILITY}, {"letter-spacing", LETTER_SPACING}
+    {"vector-effect", VECTOR_EFFECT}, {"visibility", VISIBILITY}, {"letter-spacing", LETTER_SPACING},
+    {"stroke-alignment", STROKE_ALIGNMENT}
   };
 
   auto it = stdAttrMap.find(name);
@@ -296,6 +297,7 @@ void SvgNode::onAttrChange(const char* name, SvgAttr::StdAttr stdattr)
     case SvgAttr::STROKE:
     case SvgAttr::STROKE_LINECAP:
     case SvgAttr::STROKE_LINEJOIN:
+    case SvgAttr::STROKE_ALIGNMENT:
     case SvgAttr::STROKE_MITERLIMIT:
     case SvgAttr::STROKE_WIDTH:
     case SvgAttr::TEXT_ANCHOR:

@@ -103,6 +103,8 @@ static SvgAttr processStdAttribute(SvgAttr::StdAttr stdattr, const char* value)
     return SvgAttr("stroke-linecap", parseEnum(value, SvgStyle::lineCap));
   case SvgAttr::STROKE_LINEJOIN:
     return SvgAttr("stroke-linejoin", parseEnum(value, SvgStyle::lineJoin));
+  case SvgAttr::STROKE_ALIGNMENT:
+    return SvgAttr("stroke-alignment", parseEnum(value, SvgStyle::strokeAlign));
   case SvgAttr::STROKE_MITERLIMIT:
     return SvgAttr("stroke-miterlimit", toReal(value, 0));
   case SvgAttr::STROKE_OPACITY:

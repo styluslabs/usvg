@@ -354,6 +354,7 @@ void SvgPainter::applyStyle(const SvgNode* node, bool forBounds)
     case SvgAttr::TEXT_ANCHOR:  state.textAnchor = attr.intVal();  break;
     case SvgAttr::VECTOR_EFFECT:  p->setVectorEffect(Painter::VectorEffect(attr.intVal()));  break;
     case SvgAttr::LETTER_SPACING:  p->setLetterSpacing(attr.floatVal());  break;
+    case SvgAttr::STROKE_ALIGNMENT:  p->setStrokeAlign(Painter::StrokeAlign(attr.intVal()));  break;
     default: break;
     }
   }

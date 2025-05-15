@@ -96,6 +96,7 @@ static const char* stdEnumToStr(SvgAttr attr)
   case SvgAttr::FONT_WEIGHT:     return enumToStr(attr.intVal(), SvgStyle::fontWeight);
   case SvgAttr::STROKE_LINECAP:  return enumToStr(attr.intVal(), SvgStyle::lineCap);
   case SvgAttr::STROKE_LINEJOIN: return enumToStr(attr.intVal(), SvgStyle::lineJoin);
+  case SvgAttr::STROKE_ALIGNMENT:return enumToStr(attr.intVal(), SvgStyle::strokeAlign);
   case SvgAttr::TEXT_ANCHOR:     return enumToStr(attr.intVal(), SvgStyle::textAnchor);
   case SvgAttr::SHAPE_RENDERING: return enumToStr(attr.intVal(), SvgStyle::shapeRendering);
   case SvgAttr::COMP_OP:         return enumToStr(attr.intVal(), SvgStyle::compOp);

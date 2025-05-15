@@ -62,6 +62,8 @@ namespace SvgStyle
       {{"butt", Painter::FlatCap}, {"round", Painter::RoundCap}, {"square", Painter::SquareCap}};
   static constexpr SvgEnumVal lineJoin[] =
       {{"miter", Painter::MiterJoin}, {"round", Painter::RoundJoin}, {"bevel", Painter::BevelJoin}};
+  static constexpr SvgEnumVal strokeAlign[] =
+      {{"center", Painter::StrokeCenter}, {"inner", Painter::StrokeInner}, {"outer", Painter::StrokeOuter}};
   static constexpr SvgEnumVal textAnchor[] =
       {{"start", Painter::AlignLeft}, {"middle", Painter::AlignHCenter}, {"end", Painter::AlignRight}};
   static constexpr SvgEnumVal shapeRendering[] =
