@@ -1,7 +1,7 @@
 # simple C/C++ makefile
 
-#TARGET = usvgtest
-TARGET = svgconcat
+TARGET = usvgtest
+#TARGET = svgconcat
 SOURCES = \
   svgnode.cpp \
   svgstyleparser.cpp \
@@ -9,8 +9,8 @@ SOURCES = \
   svgpainter.cpp \
   svgwriter.cpp \
   cssparser.cpp \
-	test/svgconcat.cpp
-#  test/usvgtest.cpp
+  test/usvgtest.cpp
+#  test/svgconcat.cpp
 
 SOURCES += \
   ../pugixml/src/pugixml.cpp \
@@ -18,7 +18,7 @@ SOURCES += \
   ../ulib/image.cpp \
   ../ulib/path2d.cpp \
   ../ulib/painter.cpp \
-  ../nanovg-2/src/nanovg.c \
+  ../nanovgXC/src/nanovg.c \
 
 #SOURCES += \
 #  ../miniz/miniz.c \
@@ -29,7 +29,7 @@ SOURCES += \
 # - this ensures object files remain under build directory
 TOPDIR = usvg
 
-INC = . .. ../nanovg-2/src
+INC = . .. ../nanovgXC/src
 INCSYS = ../pugixml/src ../stb
 DEFS = PUGIXML_NO_XPATH PUGIXML_NO_EXCEPTIONS NO_PAINTER_GL NO_MINIZ
 

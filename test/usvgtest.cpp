@@ -14,6 +14,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define FONTSTASH_IMPLEMENTATION
+#include "fontstash.h"
+
 #define NANOVG_SW_IMPLEMENTATION
 #include "nanovg.h"
 #include "nanovg_sw.h"
@@ -33,14 +36,17 @@ int main(int argc, char* argv[])
   std::string outsvgfile = std::string(svgfile, strlen(svgfile)-4) + "_out.svg";
 
   int res = 0;
-  NVGcontext* nvgContext = nvgswCreate(NVG_AUTOW_DEFAULT | NVG_IMAGE_SRGB);
-  Painter::sharedVg = nvgContext;
+  Painter::initFontStash(FONS_SUMMED);  //FONS_SDF
   Painter::loadFontMem("sans", Roboto_Regular_ttf, Roboto_Regular_ttf_len);
 
   SvgDocument* doc = SvgParser().parseFile(svgfile);
 
+  Painter boundsPaint(Painter::PAINT_NULL);
+  SvgPainter boundsCalc(&boundsPaint);
+  doc->boundsCalculator = &boundsCalc;
+
   Image image(doc->width().value, doc->height().value);
-  Painter painter(&image);
+  Painter painter(Painter::PAINT_SW | Painter::SW_NO_XC | Painter::CACHE_IMAGES, &image);  //SRGB_AWARE
   painter.beginFrame();
   painter.fillRect(painter.deviceRect, Color::WHITE);
   SvgPainter(&painter).drawNode(doc);  //, dirty);
