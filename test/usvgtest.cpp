@@ -24,6 +24,22 @@
 // generated with xxd -i Roboto-Regular.ttf
 #include "Roboto-Regular.inl"
 
+static Image paintDoc(SvgDocument* doc, int paintflags, const std::string& outpngfile)
+{
+  Image image(doc->width().value, doc->height().value);
+  Painter painter(paintflags, &image);  //SRGB_AWARE  //| Painter::CACHE_IMAGES
+  painter.beginFrame();
+  painter.fillRect(painter.deviceRect, Color::WHITE);
+  SvgPainter(&painter).drawNode(doc);  //, dirty);
+  painter.endFrame();
+
+  auto buff = image.encodePNG();
+  FileStream pngout(outpngfile.c_str(), "wb");
+  pngout.write(buff.data(), buff.size());
+  pngout.close();
+  return image;
+}
+
 int main(int argc, char* argv[])
 {
   if(argc < 2) {
@@ -31,9 +47,10 @@ int main(int argc, char* argv[])
     return -100;
   }
   const char* svgfile = argv[1];
-  std::string refpngfile = std::string(svgfile, strlen(svgfile)-4) + "_ref.png";
-  std::string outpngfile = std::string(svgfile, strlen(svgfile)-4) + "_out.png";
-  std::string outsvgfile = std::string(svgfile, strlen(svgfile)-4) + "_out.svg";
+  std::string filebase(svgfile, strlen(svgfile)-4);
+  std::string refpngfile = filebase + "_ref.png";
+  std::string outpngfile = filebase + "_out.png";
+  std::string outsvgfile = filebase + "_out.svg";
 
   int res = 0;
   Painter::initFontStash(FONS_SUMMED);  //FONS_SDF
@@ -45,12 +62,8 @@ int main(int argc, char* argv[])
   SvgPainter boundsCalc(&boundsPaint);
   doc->boundsCalculator = &boundsCalc;
 
-  Image image(doc->width().value, doc->height().value);
-  Painter painter(Painter::PAINT_SW | Painter::SW_NO_XC | Painter::CACHE_IMAGES, &image);  //SRGB_AWARE
-  painter.beginFrame();
-  painter.fillRect(painter.deviceRect, Color::WHITE);
-  SvgPainter(&painter).drawNode(doc);  //, dirty);
-  painter.endFrame();
+  paintDoc(doc, Painter::PAINT_SW, filebase + "_xc_out.png");
+  Image image = paintDoc(doc, Painter::PAINT_SW | Painter::SW_NO_XC, outpngfile);
 
   std::string refpngbuff;
   readFile(&refpngbuff, refpngfile.c_str());
@@ -58,14 +71,8 @@ int main(int argc, char* argv[])
 
   if(refpngbuff.empty())
     PLATFORM_LOG("Reference image %s not found\n", refpngfile.c_str());
-  else if(refpng != image) {
-    --res;
+  else if(refpng != image)
     PLATFORM_LOG("Failed: rendered image does not match %s\n", refpngfile.c_str());
-    auto buff = image.encodePNG();
-    FileStream pngout(outpngfile.c_str(), "wb");
-    pngout.write(buff.data(), buff.size());
-    pngout.close();
-  }
   else
     PLATFORM_LOG("Rendered image matches %s\n", refpngfile.c_str());
 

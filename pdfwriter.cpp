@@ -476,6 +476,23 @@ void PdfWriter::applyStyle(const SvgNode* node)
     case SvgAttr::STROKE_LINECAP:  writef(enumToStr(attr.intVal(), lineCap));  break;
     case SvgAttr::STROKE_LINEJOIN:  writef(enumToStr(attr.intVal(), lineJoin));  break;
     case SvgAttr::STROKE_MITERLIMIT:  writef("%.3f M", attr.floatVal());  break;
+    case SvgAttr::STROKE_DASHARRAY:
+    {
+      std::vector<float> dashf;
+      dashf.resize(attr.stringLen()/sizeof(float));
+      // not aligned in general
+      memcpy(dashf.data(), attr.stringVal(), attr.stringLen());
+      std::vector<real> dashes(dashf.begin(), dashf.end());
+      // remove -1 used to terminate dash array (and any extra -1 from before this fix was added)
+      while(!dashes.empty() && dashes.back() < 0) { dashes.pop_back(); }
+      std::string dashstr;
+      char buff[64];
+      for(real val : dashes) {
+        int n = realToStr(buff, val, 2);
+        dashstr.append(" ").append(buff, buff+n);
+      }
+      writef("[%s] 0 d", dashstr.c_str()+1);  // 0 for dash offset for now
+    }
     //case SvgAttr::VECTOR_EFFECT:
     //else if(attr.name == "vector-effect")
     //  p->setVectorEffect(Painter::VectorEffect(attr.intVal()));
