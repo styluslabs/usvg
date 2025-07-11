@@ -901,6 +901,11 @@ Point SvgPainter::drawTextTspans(const SvgTspan* node, Point pos,
 #include <locale>         // std::wstring_convert
 #include <codecvt>        // std::codecvt_utf8
 
+static void trimU32String(std::u32string& s)
+{
+  while(s.back() < 0x7F && isspace(s.back())) { s.pop_back(); }
+}
+
 // return text of node broken into lines of length <= maxWidth
 // note that we don't use Painter::textBreakLines to support SVG fonts
 std::string SvgPainter::breakText(const SvgText* node, real maxWidth)
@@ -917,23 +922,25 @@ std::string SvgPainter::breakText(const SvgText* node, real maxWidth)
   size_t ii = 0, lastSpace = 0, lineStart = 0;
   for(; ii < glyphpos.size(); ++ii) {
     if(s[ii] == '\n') {
-      res.append(&s[lineStart], &s[ii + 1]);
+      res.append(&s[lineStart], &s[ii]);
+      trimU32String(res);
+      res.push_back('\n');
       lastSpace = lineStart = ii + 1;
     }
-    else if(isspace(s[ii])) {
+    else if(s[ii] < 0x7F && isspace(s[ii])) {
       lastSpace = ii;
     }
     else if(glyphpos[ii].right - glyphpos[lineStart].left > maxWidth) {
       bool force = lastSpace == lineStart;
       res.append(&s[lineStart], &s[force ? ii : lastSpace]);  // exclude last space
-      while(isspace(res.back())) { res.pop_back(); }  // remove any additional spaces
+      trimU32String(res); // remove any additional spaces
       res.push_back('\n');
       lastSpace = lineStart = force ? ii : lastSpace + 1;  // glyphpos[origin].left;
     }
   }
   if(lineStart < ii)
     res.append(&s[lineStart], &s[ii]);
-  while(isspace(res.back())) { res.pop_back(); }  // handles possible trailing newline
+  trimU32String(res);  // handles possible trailing newline
   return cv.to_bytes(res);
 }
 
