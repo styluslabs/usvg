@@ -199,7 +199,7 @@ public:
   void cssToInlineStyle();
 
   // moved here to support selecting, e.g., <tspan> inside <text>
-  std::vector<SvgNode*> select(const char* selector, size_t nhits = SIZE_MAX) const;
+  std::vector<SvgNode*> select(const char* selector, size_t nhits = size_t(-1)) const;
   SvgNode* selectFirst(const char* selector) const;
 
   SvgNodeExtension* ext(bool create = true) const;
